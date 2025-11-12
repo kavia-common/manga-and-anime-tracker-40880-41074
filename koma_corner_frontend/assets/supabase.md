@@ -3,15 +3,16 @@
 Environment variables (must be set via .env):
 - REACT_APP_SUPABASE_URL
 - REACT_APP_SUPABASE_KEY
-- REACT_APP_FRONTEND_URL (used for emailRedirectTo on sign-up and OAuth redirectTo)
+- REACT_APP_FRONTEND_URL (used for emailRedirectTo on sign-up)
 
 Frontend uses @supabase/supabase-js v2 client created in src/supabaseClient.js via getSupabase().
 
 Auth:
+- Email/password only.
 - Session loaded at app startup in AppContext.
 - onAuthStateChange updates context user state.
 - Sign-in/up handled in src/pages/Auth.jsx.
-- Google SSO: signInWithOAuth({ provider: 'google', options: { redirectTo: REACT_APP_FRONTEND_URL || window.location.origin } }).
+- On sign-up, emailRedirectTo uses REACT_APP_FRONTEND_URL (fallbacks to window.location.origin).
 
 Persistence:
 - Ratings: public.user_ratings (1..5 scale, unique per user/media_id/media_type).
