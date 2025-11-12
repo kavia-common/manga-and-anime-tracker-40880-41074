@@ -7,7 +7,7 @@ Ocean Professional minimalist React SPA for browsing manga/anime, managing a per
 - Title detail view
 - My Library (requires auth)
 - Ratings enabled (no notes/comments)
-- Supabase Auth (email/password baseline; Google can be added)
+- Supabase Auth (email/password + Google SSO)
 - Ocean Professional minimalist styling
 
 ## Getting Started
@@ -61,6 +61,33 @@ Notes:
 - Ratings are stored in public.user_ratings on a 1..5 scale; notes/comments are not implemented.
 - Lists are stored in public.user_lists with list_name in { plan, current, completed, favorite }.
 - Without env vars the app runs in mock mode and will not persist ratings.
+
+## Google SSO (Supabase OAuth)
+Enable Google Sign-In via Supabase:
+1) In Supabase Dashboard -> Authentication -> Providers -> Google:
+   - Enable the Google provider.
+   - Provide your Google OAuth Client ID and Client Secret (from Google Cloud Console).
+2) In Supabase Dashboard -> Authentication -> URL Configuration:
+   - Add your site URL to "Site URL" (e.g., http://localhost:3000 for local).
+   - Add Authorized Redirect URLs:
+     - http://localhost:3000
+     - http://localhost:3000/auth
+     - Any deployed frontend URL and its /auth path (e.g., https://your.app and https://your.app/auth)
+   Supabase will handle redirects back to the SPA root or the provided redirectTo.
+3) Ensure your .env includes:
+   - REACT_APP_SUPABASE_URL
+   - REACT_APP_SUPABASE_KEY
+   - REACT_APP_FRONTEND_URL (used for OAuth/email redirect targets)
+
+Usage:
+- Navigate to /auth and click "Continue with Google".
+- The app uses signInWithOAuth({ provider: 'google', options: { redirectTo: REACT_APP_FRONTEND_URL || window.location.origin } }).
+- Session handling is automatic via onAuthStateChange in src/context/AppContext.jsx. After redirect, user state is refreshed and guarded routes (e.g., /library) work as expected.
+
+Troubleshooting:
+- If you see "Supabase env vars missing" banner, set the required .env variables and restart the dev server.
+- If Google redirects to a disallowed URL, verify the "Site URL" and authorized redirect URLs in Supabase Settings.
+- For local development, REACT_APP_FRONTEND_URL should be http://localhost:3000.
 
 ## Styling
 Colors and minimal components are in src/theme.css following the Ocean Professional palette:
