@@ -1,4 +1,5 @@
 # Koma Corner Docs
 
 - Requirements summary (provided externally to this repo).
-- Frontend setup and Supabase schema notes are in: ../koma_corner_frontend/README_APP.md
+- Supabase schema and usage guide: ./supabase-schema.md
+- Frontend setup details: ../koma_corner_frontend/README_APP.md

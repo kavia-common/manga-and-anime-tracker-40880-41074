@@ -45,54 +45,22 @@ If Supabase env vars are not set, the app runs fully in mock mode (catalog + in-
 - /auth           Sign-in / Sign-up
 
 ## Supabase Setup (Schema)
-Use SQL to create required tables. Ratings are enabled. Notes/Comments are intentionally excluded.
+A concise, centralized schema and usage guide (including DDL and RLS) is available here:
+- ../../kavia-docs/supabase-schema.md
 
--- Users: Managed by Supabase Auth (auth.users)
+Quick steps:
+1) Open your project in the Supabase SQL editor.
+2) Copy the SQL from kavia-docs/supabase-schema.md and run it to create public.user_lists and public.user_ratings with RLS enabled.
+3) In your .env, set:
+   REACT_APP_SUPABASE_URL=<your_supabase_url>
+   REACT_APP_SUPABASE_KEY=<your_supabase_anon_key>
+   REACT_APP_FRONTEND_URL=http://localhost:3000
+4) Start the app with npm start and sign up/sign in from /auth.
 
--- Personal library list (favorite/plan/current/completed - optional extension)
-create table if not exists public.user_lists (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  media_id text not null,
-  media_type text not null check (media_type in ('manga','anime')),
-  list_name text not null check (list_name in ('plan','current','completed','favorite')),
-  created_at timestamptz not null default now(),
-  unique(user_id, media_id, media_type, list_name)
-) security invoker;
-
--- Ratings (1..5)
-create table if not exists public.user_ratings (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  media_id text not null,
-  media_type text not null check (media_type in ('manga','anime')),
-  rating int not null check (rating between 1 and 5),
-  updated_at timestamptz not null default now(),
-  unique(user_id, media_id, media_type)
-) security invoker;
-
--- RLS
-alter table public.user_lists enable row level security;
-alter table public.user_ratings enable row level security;
-
-create policy "Lists are viewable by owner"
-on public.user_lists for select
-using (auth.uid() = user_id);
-
-create policy "Lists are modifiable by owner"
-on public.user_lists for all
-using (auth.uid() = user_id);
-
-create policy "Ratings are viewable by owner"
-on public.user_ratings for select
-using (auth.uid() = user_id);
-
-create policy "Ratings are modifiable by owner"
-on public.user_ratings for all
-using (auth.uid() = user_id);
-
--- Optionally create a 'titles' table if you plan server-side ingestion;
--- for now frontend uses AniList or mock data, so this is not required.
+Notes:
+- Ratings are stored in public.user_ratings on a 1..5 scale; notes/comments are not implemented.
+- Lists are stored in public.user_lists with list_name in { plan, current, completed, favorite }.
+- Without env vars the app runs in mock mode and will not persist ratings.
 
 ## Styling
 Colors and minimal components are in src/theme.css following the Ocean Professional palette:
