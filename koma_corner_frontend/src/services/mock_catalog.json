@@ -1,0 +1,47 @@
+[
+  {
+    "id": "1001",
+    "title": "Azure Tides",
+    "type": "Anime",
+    "year": 2022,
+    "cover": "https://images.unsplash.com/photo-1520975922284-7b683b9b0e39?q=80&w=800&auto=format&fit=crop",
+    "genres": ["Adventure", "Fantasy"],
+    "synopsis": "A young navigator charts perilous seas to reunite distant islands while ancient spirits awaken beneath the waves."
+  },
+  {
+    "id": "1002",
+    "title": "Silent Panels",
+    "type": "Manga",
+    "year": 2019,
+    "cover": "https://images.unsplash.com/photo-1494797262163-102fae527c62?q=80&w=800&auto=format&fit=crop",
+    "genres": ["Drama", "Slice of Life"],
+    "synopsis": "An illustrator finds their voice through a series of wordless vignettes that capture the beauty of everyday life."
+  },
+  {
+    "id": "1003",
+    "title": "Chromatic Gear",
+    "type": "Anime",
+    "year": 2021,
+    "cover": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop",
+    "genres": ["Sci-Fi", "Action"],
+    "synopsis": "In a city powered by color frequencies, a rebel tuner must recalibrate the spectrum to stop a technocratic coup."
+  },
+  {
+    "id": "1004",
+    "title": "Paper Lanterns",
+    "type": "Manga",
+    "year": 2017,
+    "cover": "https://images.unsplash.com/photo-1520975693416-35dbc07f3f01?q=80&w=800&auto=format&fit=crop",
+    "genres": ["Romance", "Drama"],
+    "synopsis": "Two festival artisans cross paths each summer, weaving a decade-long story of hopes carried by candlelight."
+  },
+  {
+    "id": "1005",
+    "title": "Iron Sakura",
+    "type": "Anime",
+    "year": 2020,
+    "cover": "https://images.unsplash.com/photo-1520975922095-54d4df5b9a65?q=80&w=800&auto=format&fit=crop",
+    "genres": ["Action", "Historical"],
+    "synopsis": "A ronin mechanist crafts secret automata to protect a mountain village from a rising warlord."
+  }
+]

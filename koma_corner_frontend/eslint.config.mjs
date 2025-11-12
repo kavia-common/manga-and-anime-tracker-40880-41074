@@ -18,14 +18,15 @@ export default [
       }
     },
     rules: {
-
-     'no-unused-vars': ['error', { varsIgnorePattern: 'React|App' }]
-
+      "no-unused-vars": ["warn", { varsIgnorePattern: "React|App", args: "none", ignoreRestSiblings: true }]
     }
   },
   pluginJs.configs.recommended,
   {
     plugins: { react: pluginReact },
+    settings: {
+      react: { version: "detect" }
+    },
     rules: {
       "react/react-in-jsx-scope": "off",
       "react/jsx-uses-react": "off",
