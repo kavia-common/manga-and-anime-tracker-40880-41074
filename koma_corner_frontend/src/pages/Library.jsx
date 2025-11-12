@@ -8,21 +8,38 @@ export function Library() {
   /** My Library page: shows rated items and allows adjusting ratings. */
   const { CatalogAPI, ratings, setRating, user } = useAppContext();
   const [items, setItems] = useState([]);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const data = await CatalogAPI.list();
-      if (mounted) setItems(data);
+      if (!user) return;
+      const ratedIds = Object.keys(ratings || {});
+      if (!ratedIds.length) {
+        setItems([]);
+        return;
+      }
+      setBusy(true);
+      try {
+        const minimal = await CatalogAPI.getMinimalByIds(ratedIds);
+        if (mounted) setItems(minimal);
+      } catch (e) {
+        console.warn('Library minimal fetch failed', e);
+        // Fallback: empty, page will show message
+        if (mounted) setItems([]);
+      } finally {
+        if (mounted) setBusy(false);
+      }
     })();
     return () => { mounted = false; };
-  }, [CatalogAPI]);
+  }, [CatalogAPI, ratings, user]);
 
   const rated = useMemo(() => {
     return items.filter(i => ratings[i.id]);
   }, [items, ratings]);
 
   if (!user) return <div className="kc-empty">Please sign in to view your library.</div>;
+  if (busy) return <div className="kc-empty">Loading…</div>;
   if (!rated.length) return <div className="kc-empty">You haven't rated any titles yet.</div>;
 
   return (

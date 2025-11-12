@@ -74,4 +74,5 @@ Colors and minimal components are in src/theme.css following the Ocean Professio
 
 ## Notes
 - Ratings persistence is wired: see src/services/supabaseData.js and src/context/AppContext.jsx. Without Supabase env vars, the app falls back to in-memory ratings.
-- AniList integration is not included yet; a local mock dataset is provided.
+- AniList integration: catalog data is fetched from the public AniList GraphQL API (https://graphql.anilist.co) using a lightweight helper (src/services/graphql.js). The catalog service (src/services/catalog.js) provides search, trending, detail, and minimal batch lookups, with in-memory caching and graceful mock fallbacks if the API call fails.
+- Rate limiting: AniList is a public API with fair-use limits. This app memoizes recent responses in-memory to reduce calls and keeps the UI responsive with loading/error states. If the API is temporarily unavailable, Home/Search fall back to the local mock dataset for a basic experience.
