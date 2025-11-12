@@ -39,7 +39,7 @@ export function Detail() {
           <p style={{ marginTop: 10 }}>{item.synopsis}</p>
           <div style={{ marginTop: 8 }}>
             <div className="kc-subtle" style={{ marginBottom: 6 }}>Your rating</div>
-            <Rating value={myRating} onChange={(v) => setRating(item.id, v)} />
+            <Rating value={myRating} onChange={(v) => setRating(item.id, v, { media_type: (item.type || '').toLowerCase().includes('manga') ? 'manga' : 'anime' })} />
           </div>
         </div>
       </div>

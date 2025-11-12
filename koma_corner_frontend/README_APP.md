@@ -105,5 +105,5 @@ Colors and minimal components are in src/theme.css following the Ocean Professio
 - text: #111827
 
 ## Notes
-- This initial scaffold stores ratings in memory when Supabase is not configured. To persist ratings, implement API calls to public.user_ratings with Supabase client inside context or a dedicated service.
+- Ratings persistence is wired: see src/services/supabaseData.js and src/context/AppContext.jsx. Without Supabase env vars, the app falls back to in-memory ratings.
 - AniList integration is not included yet; a local mock dataset is provided.

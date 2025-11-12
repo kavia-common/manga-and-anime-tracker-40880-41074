@@ -39,7 +39,7 @@ export function Library() {
             </Link>
             <div className="kc-card-body">
               <div className="kc-title">{item.title}</div>
-              <Rating value={ratings[item.id] || 0} onChange={(v) => setRating(item.id, v)} />
+              <Rating value={ratings[item.id] || 0} onChange={(v) => setRating(item.id, v, { media_type: (item.type || '').toLowerCase().includes('manga') ? 'manga' : 'anime' })} />
             </div>
           </div>
         ))}

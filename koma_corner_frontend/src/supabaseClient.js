@@ -10,8 +10,11 @@ if (!url || !key) {
 
 /**
  * Returns a Supabase client if environment variables are configured; otherwise returns null.
+ * The client is created per-call to ensure it always reflects current env configuration.
  */
+// PUBLIC_INTERFACE
 export const getSupabase = () => {
+  /** Returns configured Supabase client or null if env vars are missing. */
   if (!url || !key) return null;
   return createClient(url, key);
 };
@@ -20,4 +23,13 @@ export const getSupabase = () => {
 export function getEnvWarning() {
   /** Returns environment warning string when env vars are missing, else null. */
   return envWarning;
+}
+
+// PUBLIC_INTERFACE
+export async function getCurrentSession() {
+  /** Retrieves current Supabase auth session if configured; else returns null. */
+  const client = getSupabase();
+  if (!client) return null;
+  const { data } = await client.auth.getSession();
+  return data?.session ?? null;
 }
