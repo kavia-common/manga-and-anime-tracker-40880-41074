@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Rating } from '../components/Rating';
 import { useToast } from '../components/Toast';
 import { ListsService, ProgressService } from '../services/supabaseData';
+import { safeNavigate } from '../utils/redirects';
 // Note: this page uses only history navigation (-1) and internal Links; no external redirects.
 
 // PUBLIC_INTERFACE
@@ -167,13 +168,19 @@ export function Detail() {
       </div>
       <div className="kc-grid">
         {(recs || []).map(r => (
-          <div key={r.id} className="kc-card">
+          <Link
+            to={`/title/${r.id}`}
+            key={`rec-${r.id}`}
+            className="kc-card"
+            role="link"
+            aria-label={`View details for ${r.title}`}
+          >
             <img src={r.cover} alt={r.title} loading="lazy" />
             <div className="kc-card-body">
               <div className="kc-title">{r.title}</div>
               <div className="kc-subtle">{r.type}{r.year ? ` • ${r.year}` : ''}</div>
             </div>
-          </div>
+          </Link>
         ))}
         {!recs?.length && <div className="kc-empty">No recommendations yet.</div>}
       </div>

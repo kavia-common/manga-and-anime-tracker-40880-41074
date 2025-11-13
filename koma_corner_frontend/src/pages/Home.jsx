@@ -9,7 +9,8 @@ export function Home() {
    * - Media type toggle: Anime / Manga / Both
    * - Initial load fetches a single page (30 items).
    * - Load more appends next pages (page++) until no more results, with dedupe by id.
-   * - Client-side filters: genres and status (if available on items).
+   * - Client-side filter: genres (with "All" meaning no genre filtering).
+   * - Status filter has been removed (UI and logic).
    * - No popularity sort UI (API handles trending/popularity server-side).
    */
   const { CatalogAPI } = useAppContext();
@@ -24,13 +25,13 @@ export function Home() {
 
   // Filters container state
   const [mediaType, setMediaType] = useState('ANIME'); // 'ANIME' | 'MANGA' | 'BOTH'
-  const [genres, setGenres] = useState([]); // array of strings
-  const [status, setStatus] = useState(''); // Client-side filter; matches item.status if present
+  const [genres, setGenres] = useState([]); // array of strings, empty or includes "All" => no filtering
 
   const PER_PAGE = 30;
 
-  // Simple catalog genre options (subset common genres)
+  // Simple catalog genre options (subset common genres). Include "All".
   const GENRE_OPTIONS = [
+    'All',
     'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror',
     'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Thriller'
   ];
@@ -53,18 +54,11 @@ export function Home() {
       combined = combined.concat(filtered);
     }
 
-    // Client-side filters: genres and status
-    if (genres.length) {
+    // Client-side filter: genres
+    const hasGenreFilter = Array.isArray(genres) && genres.length > 0 && !genres.includes('All');
+    if (hasGenreFilter) {
       const want = new Set(genres);
       combined = combined.filter((i) => (i.genres || []).some((g) => want.has(g)));
-    }
-    if (status) {
-      // Keep tolerant: some mock/API items might not have explicit status; treat missing as non-match
-      const wanted = String(status).toUpperCase();
-      combined = combined.filter((i) => {
-        const s = (i.status || '').toString().toUpperCase();
-        return s === wanted;
-      });
     }
 
     // Deduplicate by id
@@ -103,7 +97,7 @@ export function Home() {
       }
     })();
     return () => { mounted = false; };
-  }, [mediaType, genres.join(','), status]);
+  }, [mediaType, genres.join(',')]);
 
   // Load more handler: fetch next page, append with dedupe and end detection
   const onLoadMore = async () => {
@@ -165,26 +159,17 @@ export function Home() {
           value={genres}
           onChange={(e) => {
             const opts = Array.from(e.target.selectedOptions).map(o => o.value);
-            setGenres(opts);
+            // If "All" is chosen among others, normalize to just ["All"] to avoid confusion
+            const next = opts.includes('All') ? ['All'] : opts;
+            setGenres(next);
           }}
-          style={{ minWidth: 180, height: 80 }}
+          style={{ minWidth: 200, height: 96 }}
         >
           {GENRE_OPTIONS.map((g) => (
             <option key={g} value={g}>{g}</option>
           ))}
         </select>
-        <select
-          className="kc-select"
-          aria-label="Status"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-        >
-          <option value="">Any status</option>
-          <option value="RELEASING">Ongoing</option>
-          <option value="FINISHED">Completed</option>
-          <option value="NOT_YET_RELEASED">Upcoming</option>
-          <option value="CANCELLED">Cancelled</option>
-        </select>
+        {/* Status filter removed */}
       </div>
     </div>
   );

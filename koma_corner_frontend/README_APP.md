@@ -53,9 +53,10 @@ If Supabase env vars are not set, the app runs fully in mock mode (catalog + in-
 - Home loads a single page of 30 items for trending.
 - No infinite scroll or periodic refresh is performed.
 - An explicit "Load more" button fetches and appends the next 30 items each time (perPage=30). Results are de-duplicated by id and end-of-list is detected when fewer than a page is returned or no new items are added. The button shows a loading state and is disabled while fetching.
-- Home filter container includes: Media Type toggle (Anime / Manga / Both), genre multiselect, and status select.
-  - Status filter is applied client-side against item.status when present; items without a status are excluded when a status is selected.
+- Home filter container includes: Media Type toggle (Anime / Manga / Both) and a Genre multiselect.
+  - The Genre list includes an "All" option; when selected (alone or with others), no genre filtering is applied.
   - When "Both" is selected, pages alternate between Anime and Manga to keep pagination consistent.
+- Status filter has been removed from the UI and logic.
 - Global title search remains in the TopBar but is not used by the Home filter container.
 - Popularity sort UI has been removed; the underlying query uses the API’s trending/popularity ordering.
 - GraphQL uses a simple in-memory cache (no TTL or invalidation).
