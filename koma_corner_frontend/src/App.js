@@ -9,6 +9,10 @@ import { Library } from './pages/Library';
 import { Auth } from './pages/Auth';
 import { AppProvider, useAppContext } from './context/AppContext';
 
+/**
+ * Guarded route that only renders children when authenticated.
+ * Uses path-based Navigate with replace to prevent history pollution.
+ */
 // PUBLIC_INTERFACE
 function ProtectedRoute({ children }) {
   /** Wraps children to require authentication, redirects to /auth if unauthenticated. */

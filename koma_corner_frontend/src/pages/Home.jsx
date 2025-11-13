@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+// Internal Links only; no direct window.location usage here.
 
 // PUBLIC_INTERFACE
 export function Home() {

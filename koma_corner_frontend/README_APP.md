@@ -18,6 +18,7 @@ Ocean Professional minimalist React SPA for browsing manga/anime, managing a per
    REACT_APP_SUPABASE_URL=<your_supabase_url>
    REACT_APP_SUPABASE_KEY=<your_supabase_anon_key>
    REACT_APP_FRONTEND_URL=http://localhost:3000
+   # Note: FRONTEND_URL must be the exact origin of the app (scheme+host+port). It is used to build safe Supabase emailRedirectTo.
 
    Optional (currently unused):
    REACT_APP_API_BASE=

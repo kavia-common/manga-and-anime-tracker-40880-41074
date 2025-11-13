@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { getSafeRedirectFromParams, safeNavigate, buildSupabaseRedirectTo, isSafeRedirect, normalizeToPath } from '../utils/redirects';
 
 // PUBLIC_INTERFACE
 export function Auth() {
   /**
    * Authentication page.
    * - Email/password only
+   * - Safe redirect support: accepts ?redirect=/path and validates same-origin path
    * If env vars are missing, shows information and disables controls.
    */
   const { supabase, envWarning } = useAppContext();
@@ -15,6 +17,19 @@ export function Auth() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Determine post-auth target from query (?redirect=/path), with hard fallback to '/library'
+  const defaultAfterAuth = '/library';
+  const afterAuth = useMemo(() => {
+    try {
+      const safe = getSafeRedirectFromParams(location?.search || '', 'redirect', defaultAfterAuth);
+      // Ensure it's one of the allowed paths; otherwise fallback
+      return isSafeRedirect(safe) ? normalizeToPath(safe, defaultAfterAuth) : defaultAfterAuth;
+    } catch {
+      return defaultAfterAuth;
+    }
+  }, [location?.search]);
 
   const guard = () => {
     if (!supabase) {
@@ -29,10 +44,18 @@ export function Auth() {
     setError(null);
     if (!guard()) return;
     setBusy(true);
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password: pass });
-    setBusy(false);
-    if (err) setError(err.message);
-    else navigate('/library');
+    try {
+      const { error: err } = await supabase.auth.signInWithPassword({ email, password: pass });
+      if (err) {
+        setError(err.message);
+      } else {
+        safeNavigate(navigate, afterAuth, { replace: true, fallback: defaultAfterAuth });
+      }
+    } catch (ex) {
+      setError(ex?.message || 'Unexpected error during sign-in.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const signUp = async (e) => {
@@ -40,16 +63,26 @@ export function Auth() {
     setError(null);
     if (!guard()) return;
     setBusy(true);
-    const { error: err } = await supabase.auth.signUp({
-      email,
-      password: pass,
-      options: {
-        emailRedirectTo: process.env.REACT_APP_FRONTEND_URL || window.location.origin
+    try {
+      const emailRedirectTo = buildSupabaseRedirectTo(afterAuth || defaultAfterAuth);
+      const { error: err } = await supabase.auth.signUp({
+        email,
+        password: pass,
+        options: {
+          emailRedirectTo
+        }
+      });
+      if (err) {
+        setError(err.message);
+      } else {
+        // After initiating sign-up, navigate to target (user may need to confirm email)
+        safeNavigate(navigate, afterAuth, { replace: true, fallback: defaultAfterAuth });
       }
-    });
-    setBusy(false);
-    if (err) setError(err.message);
-    else navigate('/library');
+    } catch (ex) {
+      setError(ex?.message || 'Unexpected error during sign-up.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

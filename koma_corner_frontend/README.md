@@ -10,5 +10,9 @@ Quick start:
    REACT_APP_FRONTEND_URL=http://localhost:3000
 3) npm start
 
+Security notes:
+- Redirects and navigation are hardened to only allow same-origin path-based targets.
+- Supabase emailRedirectTo uses REACT_APP_FRONTEND_URL origin with a safe path.
+
 Docs:
 - See README_APP.md for detailed instructions and Supabase schema.

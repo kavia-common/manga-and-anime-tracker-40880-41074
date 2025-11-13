@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { safeNavigate } from '../utils/redirects';
 
 // PUBLIC_INTERFACE
 export function TopBar() {
@@ -9,8 +10,14 @@ export function TopBar() {
   const navigate = useNavigate();
 
   const onSignOut = async () => {
-    if (supabase) await supabase.auth.signOut();
-    navigate('/');
+    try {
+      if (supabase) await supabase.auth.signOut();
+    } catch (e) {
+      // swallow to avoid user-facing errors
+      // optionally log
+      // console.warn('Sign out error', e);
+    }
+    safeNavigate(navigate, '/', { replace: true });
   };
 
   return (

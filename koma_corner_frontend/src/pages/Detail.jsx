@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Rating } from '../components/Rating';
+// Note: this page uses only history navigation (-1) and internal Links; no external redirects.
 
 // PUBLIC_INTERFACE
 export function Detail() {

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Rating } from '../components/Rating';
 import { Link } from 'react-router-dom';
+// Internal Links only; stays within SPA.
 
 // PUBLIC_INTERFACE
 export function Library() {

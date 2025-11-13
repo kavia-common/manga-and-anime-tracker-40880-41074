@@ -3,7 +3,7 @@
 Environment variables (must be set via .env):
 - REACT_APP_SUPABASE_URL
 - REACT_APP_SUPABASE_KEY
-- REACT_APP_FRONTEND_URL (used for emailRedirectTo on sign-up)
+- REACT_APP_FRONTEND_URL (used for emailRedirectTo on sign-up; must match the app origin)
 
 Frontend uses @supabase/supabase-js v2 client created in src/supabaseClient.js via getSupabase().
 
@@ -12,7 +12,8 @@ Auth:
 - Session loaded at app startup in AppContext.
 - onAuthStateChange updates context user state.
 - Sign-in/up handled in src/pages/Auth.jsx.
-- On sign-up, emailRedirectTo uses REACT_APP_FRONTEND_URL (fallbacks to window.location.origin).
+- On sign-up, emailRedirectTo is built from REACT_APP_FRONTEND_URL origin and a safe path using utils/redirects.buildSupabaseRedirectTo().
+- Post-login/post-signup redirects only allow same-origin paths and default to '/library' when not provided or invalid.
 
 Persistence:
 - Ratings: public.user_ratings (1..5 scale, unique per user/media_id/media_type).
