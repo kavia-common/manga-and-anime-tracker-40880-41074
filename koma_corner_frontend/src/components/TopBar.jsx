@@ -10,16 +10,25 @@ export function TopBar() {
   const navigate = useNavigate();
   const [localSearch, setLocalSearch] = React.useState(search);
   const timerRef = React.useRef(null);
+  const [signingOut, setSigningOut] = React.useState(false);
 
   React.useEffect(() => { setLocalSearch(search); }, [search]);
 
   const onSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
     try {
-      if (supabase) await supabase.auth.signOut();
+      if (supabase) {
+        // Ensure we await signOut to complete; AppContext onAuthStateChange will update user state.
+        await supabase.auth.signOut();
+      }
     } catch (e) {
-      // swallow to avoid user-facing errors
+      // swallow to avoid user-facing errors, still navigate to safe route
+    } finally {
+      // Navigate to a safe route regardless to avoid being stuck on protected screens.
+      safeNavigate(navigate, '/', { replace: true });
+      setSigningOut(false);
     }
-    safeNavigate(navigate, '/', { replace: true });
   };
 
   const onSearchChange = (v) => {
@@ -51,7 +60,9 @@ export function TopBar() {
         <div className="kc-profile">
           <Link to="/library" className="kc-pill">My Library</Link>
           {user ? (
-            <button className="kc-btn" onClick={onSignOut}>Sign out</button>
+            <button className="kc-btn" onClick={onSignOut} disabled={signingOut}>
+              {signingOut ? 'Signing out…' : 'Sign out'}
+            </button>
           ) : (
             <Link to="/auth" className="kc-btn primary">Sign in</Link>
           )}

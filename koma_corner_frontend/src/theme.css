@@ -214,14 +214,24 @@ html, body, #root {
   font-size: 13px;
 }
 
-/* Filters toolbar */
+/* Filters container and toolbar */
+.kc-container {
+  background: var(--kc-bg);
+  border: 1px solid var(--kc-border);
+  box-shadow: var(--kc-shadow);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
 .kc-filters {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
+
 .kc-select, .kc-multiselect, .kc-input {
   border: 1px solid var(--kc-border);
   background: var(--kc-surface);
@@ -229,6 +239,7 @@ html, body, #root {
   padding: 8px 10px;
   border-radius: 10px;
 }
+
 .kc-toggle {
   display: inline-flex;
   border: 1px solid var(--kc-border);
