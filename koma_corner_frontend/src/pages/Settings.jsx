@@ -6,14 +6,31 @@ export function Settings() {
   /** Settings/Profile page with sign out and feature flags. */
   const { user, supabase } = useAppContext();
   const featureFlags = (process.env.REACT_APP_FEATURE_FLAGS || '').split(',').map(s => s.trim()).filter(Boolean);
+  const [busy, setBusy] = React.useState(false);
+
+  const withTimeout = async (p, ms = 3000) => {
+    let to;
+    try {
+      const res = await Promise.race([
+        p,
+        new Promise((_r, rej) => { to = setTimeout(() => rej(new Error('timeout')), ms); })
+      ]);
+      return res;
+    } finally {
+      if (to) clearTimeout(to);
+    }
+  };
 
   const onSignOut = async () => {
+    if (busy) return;
+    setBusy(true);
     try {
-      await supabase?.auth.signOut();
+      await withTimeout(supabase?.auth.signOut?.() ?? Promise.resolve());
     } catch {
       // swallow
+    } finally {
+      setBusy(false);
     }
-    // Rely on TopBar sign out flow for navigation; here we just call sign out.
   };
 
   if (!user) return <div className="kc-empty">Please sign in to view settings.</div>;
@@ -27,7 +44,7 @@ export function Settings() {
         <div className="kc-card-body">
           <div><strong>Email:</strong> {user.email}</div>
           <div style={{ marginTop: 10 }}>
-            <button className="kc-btn" onClick={onSignOut}>Sign out</button>
+            <button className="kc-btn" onClick={onSignOut} disabled={busy}>{busy ? 'Signing out…' : 'Sign out'}</button>
           </div>
         </div>
       </div>

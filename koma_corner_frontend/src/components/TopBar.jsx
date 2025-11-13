@@ -14,16 +14,29 @@ export function TopBar() {
 
   React.useEffect(() => { setLocalSearch(search); }, [search]);
 
+  // Promise.race guard to prevent hanging sign-out in rare cases
+  const withTimeout = async (p, ms = 3000) => {
+    let to;
+    try {
+      const res = await Promise.race([
+        p,
+        new Promise((_r, rej) => { to = setTimeout(() => rej(new Error('timeout')), ms); })
+      ]);
+      return res;
+    } finally {
+      if (to) clearTimeout(to);
+    }
+  };
+
   const onSignOut = async () => {
     if (signingOut) return;
     setSigningOut(true);
     try {
       if (supabase) {
-        // Ensure we await signOut to complete; AppContext onAuthStateChange will update user state.
-        await supabase.auth.signOut();
+        await withTimeout(supabase.auth.signOut());
       }
-    } catch (e) {
-      // swallow to avoid user-facing errors, still navigate to safe route
+    } catch {
+      // swallow to avoid user-facing errors
     } finally {
       // Navigate to a safe route regardless to avoid being stuck on protected screens.
       safeNavigate(navigate, '/', { replace: true });

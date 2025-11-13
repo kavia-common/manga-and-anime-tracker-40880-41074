@@ -5,7 +5,7 @@ Ocean Professional minimalist React SPA for browsing manga/anime, managing a per
 ## Features
 - Catalog grid with simple search
 - Title detail view with metadata, rating, favorites, lists, recommendations
-- My Library (requires auth) with tabs: Rated, Favorites, Current
+- My Library (requires auth) with simple toggles: All, Favorites, Completed, Currently Watching, Planned to Watch
 - Dashboard with Continue, Favorites, Recommended; Trending for anonymous users
 - Ratings enabled (no notes/comments)
 - Supabase Auth (email/password)
@@ -45,7 +45,7 @@ If Supabase env vars are not set, the app runs fully in mock mode (catalog + in-
 - /               Home (catalog grid only; same experience for anonymous and signed-in)
 - /dashboard      Personalized dashboard
 - /title/:id      Title detail (with rating, lists, favorite, recommendations)
-- /library        My Library (requires auth) with tabs
+- /library        My Library (requires auth) with toggles
 - /settings       Settings/Profile (requires auth)
 - /auth           Sign-in / Sign-up
 
@@ -59,6 +59,18 @@ If Supabase env vars are not set, the app runs fully in mock mode (catalog + in-
 - Global title search remains in the TopBar but is not used by the Home filter container.
 - Popularity sort UI has been removed; the underlying query uses the API’s trending/popularity ordering.
 - GraphQL uses a simple in-memory cache (no TTL or invalidation).
+
+## Library
+- The Library page waits until your session is checked and a user exists before fetching data.
+- A simple toggle group replaces tabs: All, Favorites, Completed, Currently Watching, Planned to Watch.
+- Each toggle fetches lazily only once using minimal batch queries (CatalogAPI.getMinimalByIds) and caches results locally; subsequent visits reuse the cache.
+- While loading, a lightweight skeleton grid is shown. Results are de-duplicated by id.
+- If you are signed out or Supabase is not configured, a friendly empty state is displayed.
+
+## Sign-out behavior
+- Sign-out triggers await supabase.auth.signOut() with a short timeout guard to avoid hanging.
+- Navigation safely redirects to "/" after sign-out regardless of success, and buttons are disabled while the operation is in progress to prevent double clicks.
+- AppContext listens to auth state changes to clear session/user data.
 
 ## Supabase Setup (Schema)
 See ../../kavia-docs/supabase-schema.md for a concise guide.
