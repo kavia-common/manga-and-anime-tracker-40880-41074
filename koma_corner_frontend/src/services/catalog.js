@@ -132,10 +132,14 @@ const QUERY_BATCH_MIN = `
 // Helpers
 const DEFAULT_PER_PAGE = 30;
 
-// PUBLIC_INTERFACE
+ // PUBLIC_INTERFACE
 export const CatalogAPI = {
   /**
-   * Get trending media (page 1..N though UI will use 1 only).
+   * Get trending media.
+   * Parameters:
+   * - type: 'ANIME' | 'MANGA'
+   * - page: 1..N
+   * - perPage: number of items per page (default 30)
    */
   async getTrendingMedia({ type = 'ANIME', page = 1, perPage = DEFAULT_PER_PAGE } = {}) {
     try {
@@ -155,6 +159,7 @@ export const CatalogAPI = {
 
   /**
    * Search media by text query.
+   * Supports page/perPage and single media type. If a UI needs "Both", it should make two calls and merge/dedupe or alternate.
    */
   // PUBLIC_INTERFACE
   async searchMedia({ query, type = 'ANIME', page = 1, perPage = DEFAULT_PER_PAGE } = {}) {

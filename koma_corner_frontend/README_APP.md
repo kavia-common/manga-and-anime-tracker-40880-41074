@@ -50,11 +50,12 @@ If Supabase env vars are not set, the app runs fully in mock mode (catalog + in-
 - /auth           Sign-in / Sign-up
 
 ## Behavior (Catalog)
-- Home loads a single page of 30 items for trending or search results.
-- Search input uses an inline setTimeout debounce (~300ms) (TopBar and Home filter).
+- Home loads a single page of 30 items for trending.
 - No infinite scroll or periodic refresh is performed.
-- An explicit "Load more" button is available to fetch and append the next page. Results are de-duplicated by id and end-of-list is detected when fewer than a page is returned or no new items are added.
-- A minimal filter container appears on Home with: title search, genre multiselect, status select (informational for now), and a popularity sort selector.
+- An explicit "Load more" button fetches and appends the next 30 items each time (perPage=30). Results are de-duplicated by id and end-of-list is detected when fewer than a page is returned or no new items are added. The button shows a loading state and is disabled while fetching.
+- Home filter container now includes: Media Type toggle (Anime / Manga / Both), genre multiselect, status select (informational), and a fixed popularity sort label.
+  - When "Both" is selected, pages alternate between Anime and Manga to keep pagination consistent.
+- Global title search remains in the TopBar but is not used by the Home filter container.
 - GraphQL uses a simple in-memory cache (no TTL or invalidation).
 
 ## Supabase Setup (Schema)

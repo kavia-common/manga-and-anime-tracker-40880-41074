@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 
@@ -6,11 +6,13 @@ import { useAppContext } from '../context/AppContext';
 export function Home() {
   /**
    * Landing page with catalog grid and explicit "Load more" pagination.
+   * - Removed local title search (TopBar search retained globally but not used here).
+   * - Media type toggle: Anime / Manga / Both
    * - Initial load fetches a single page (30 items).
-   * - Load more appends next pages (page++) until no more results.
-   * - Includes a styled filter container: title search, genre multiselect, status select, popularity sort.
+   * - Load more appends next pages (page++) until no more results, with dedupe by id.
+   * - Retains sort by popularity (default from API).
    */
-  const { CatalogAPI, search, setSearch } = useAppContext();
+  const { CatalogAPI } = useAppContext();
 
   // Catalog state
   const [items, setItems] = useState([]);
@@ -21,12 +23,10 @@ export function Home() {
   const [hasMore, setHasMore] = useState(true);
 
   // Filters container state
-  const [localTitle, setLocalTitle] = useState(search || '');
+  const [mediaType, setMediaType] = useState('ANIME'); // 'ANIME' | 'MANGA' | 'BOTH'
   const [genres, setGenres] = useState([]); // array of strings
-  const [status, setStatus] = useState(''); // '', 'RELEASING', 'FINISHED', 'NOT_YET_RELEASED', 'CANCELLED'
-  const [sort, setSort] = useState('POPULARITY_DESC'); // POPULARITY_DESC only exposed (placeholder for future)
-
-  const timerRef = useRef(null);
+  const [status, setStatus] = useState(''); // Informational placeholder
+  const [sort] = useState('POPULARITY_DESC'); // placeholder (API already returns by popularity/trending)
 
   const PER_PAGE = 30;
 
@@ -36,38 +36,44 @@ export function Home() {
     'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Thriller'
   ];
 
-  // Keep local input in sync when search changes elsewhere (e.g., topbar)
-  useEffect(() => {
-    setLocalTitle(search || '');
-  }, [search]);
-
-  // Helper: fetch a page using current query/filter selections
+  // Helper: fetch a page using current filter selections
   const fetchPage = async ({ page: p }) => {
-    const q = (localTitle || search || '').trim();
+    // When Both selected: simple strategy — alternate ANIME and MANGA pages.
+    // For first page, ANIME; for second, MANGA; then repeat. This keeps Load more behavior consistent.
+    const resolveTypeForBoth = (pg) => (pg % 2 === 1 ? 'ANIME' : 'MANGA');
 
-    // For now, CatalogAPI only exposes text search and trending with popularity sort.
-    // We apply genre/status filters client-side as a lightweight layer.
-    const data = q
-      ? await CatalogAPI.searchMedia({ query: q, type: 'ANIME', page: p, perPage: PER_PAGE })
-      : await CatalogAPI.getTrendingMedia({ type: 'ANIME', page: p, perPage: PER_PAGE });
+    const typesToFetch = (() => {
+      if (mediaType === 'BOTH') return [resolveTypeForBoth(p)];
+      return [mediaType];
+    })();
 
-    let list = Array.isArray(data) ? data : [];
+    let combined = [];
+    for (const t of typesToFetch) {
+      const data = await CatalogAPI.getTrendingMedia({ type: t, page: p, perPage: PER_PAGE });
+      const filtered = Array.isArray(data) ? data : [];
+      combined = combined.concat(filtered);
+    }
 
-    // Client-side filters
+    // Client-side filters (genres only at the moment)
     if (genres.length) {
       const want = new Set(genres);
-      list = list.filter((i) => (i.genres || []).some((g) => want.has(g)));
+      combined = combined.filter((i) => (i.genres || []).some((g) => want.has(g)));
     }
+    // Status placeholder (no-op)
     if (status) {
-      // We don't have status in mapped items; keep placeholder (no-op) for now.
-      // If later available, filter by i.status === status.
+      // If later available, filter by i.status === status
     }
-    // sort by popularity is default from API; keep as-is.
 
-    return list;
+    // Deduplicate by id
+    const byId = new Map();
+    for (const it of combined) {
+      const k = String(it.id);
+      if (!byId.has(k)) byId.set(k, it);
+    }
+    return Array.from(byId.values());
   };
 
-  // Initial load or whenever the inputs change: reset to page 1 and fetch
+  // Initial load and when filters change: reset to page 1 and fetch
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -78,17 +84,11 @@ export function Home() {
       try {
         const list = await fetchPage({ page: 1 });
         if (!mounted) return;
-
-        // Deduplicate by id just in case
-        const map = new Map();
-        for (const it of list.slice(0, PER_PAGE)) {
-          if (!map.has(String(it.id))) map.set(String(it.id), it);
-        }
-        const unique = Array.from(map.values());
+        const unique = list.slice(0, PER_PAGE);
         setItems(unique);
-        // If fewer than PER_PAGE, we reached end
         setHasMore(unique.length >= PER_PAGE);
       } catch (e) {
+        // eslint-disable-next-line no-console
         console.warn('Home load error:', e);
         if (mounted) {
           setError('Failed to load catalog. Showing available results.');
@@ -100,27 +100,9 @@ export function Home() {
       }
     })();
     return () => { mounted = false; };
-    // Trigger when search (global), localTitle debounced, genres, status, sort change.
-    // We directly depend on localTitle and genres/status/sort; search syncs into localTitle via topbar or user typing below.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localTitle, genres.join(','), status, sort]);
+  }, [mediaType, genres.join(','), status]); // sort currently fixed to popularity
 
-  // Debounce localTitle -> global search for consistency with TopBar behavior and Dashboard expectations
-  const onLocalTitleChange = (v) => {
-    setLocalTitle(v);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      setSearch(v);
-    }, 300);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  // Load more handler: fetch next page, append with dedupe
+  // Load more handler: fetch next page, append with dedupe and end detection
   const onLoadMore = async () => {
     if (loadingMore || busy || !hasMore) return;
     setLoadingMore(true);
@@ -128,6 +110,7 @@ export function Home() {
     try {
       const nextPage = page + 1;
       const list = await fetchPage({ page: nextPage });
+
       // Dedupe by id when appending
       const byId = new Map(items.map((it) => [String(it.id), it]));
       for (const it of list) {
@@ -137,12 +120,15 @@ export function Home() {
         }
       }
       const merged = Array.from(byId.values());
+      const added = merged.length - items.length;
+
       setItems(merged);
       setPage(nextPage);
-      // End-of-list detection: if returned less than PER_PAGE or no new additions
-      const added = merged.length - items.length;
+
+      // End-of-list detection
       if (list.length < PER_PAGE || added === 0) setHasMore(false);
     } catch (e) {
+      // eslint-disable-next-line no-console
       console.warn('Load more failed:', e);
       setError('Unable to load more at the moment.');
       setHasMore(false);
@@ -151,18 +137,24 @@ export function Home() {
     }
   };
 
-  // Render filters container (styled box)
+  // Filters UI
   const FiltersBox = (
     <div className="kc-container">
-      <div className="kc-filters" aria-label="Search and filters">
-        <input
-          className="kc-input"
-          placeholder="Search titles…"
-          aria-label="Title search"
-          value={localTitle}
-          onChange={(e) => onLocalTitleChange(e.target.value)}
-          style={{ minWidth: 220 }}
-        />
+      <div className="kc-filters" aria-label="Filters">
+        <div className="kc-toggle" role="group" aria-label="Media type">
+          {['ANIME', 'MANGA', 'BOTH'].map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={mediaType === t ? 'active' : ''}
+              onClick={() => setMediaType(t)}
+              aria-pressed={mediaType === t}
+              title={t === 'ANIME' ? 'Anime' : t === 'MANGA' ? 'Manga' : 'Both'}
+            >
+              {t === 'ANIME' ? 'Anime' : t === 'MANGA' ? 'Manga' : 'Both'}
+            </button>
+          ))}
+        </div>
         <select
           multiple
           className="kc-multiselect"
@@ -194,7 +186,9 @@ export function Home() {
           className="kc-select"
           aria-label="Sort"
           value={sort}
-          onChange={(e) => setSort(e.target.value)}
+          onChange={() => {}}
+          disabled
+          title="Popularity sort is applied by default"
         >
           <option value="POPULARITY_DESC">Sort: Popularity</option>
         </select>
@@ -203,12 +197,8 @@ export function Home() {
   );
 
   const listForRender = useMemo(() => {
-    // Lightweight safeguard: ensure title filter also applied client-side
-    const term = (localTitle || '').trim().toLowerCase();
-    let list = Array.isArray(items) ? items : [];
-    if (term) list = list.filter(i => (i.title || '').toLowerCase().includes(term));
-    return list;
-  }, [items, localTitle]);
+    return Array.isArray(items) ? items : [];
+  }, [items]);
 
   if (busy) return <div className="kc-empty">Loading…</div>;
   if (error && !listForRender.length) return <div className="kc-empty">{error}</div>;
