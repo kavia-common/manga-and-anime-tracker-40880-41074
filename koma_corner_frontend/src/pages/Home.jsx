@@ -6,11 +6,11 @@ import { useAppContext } from '../context/AppContext';
 export function Home() {
   /**
    * Landing page with catalog grid and explicit "Load more" pagination.
-   * - Removed local title search (TopBar search retained globally but not used here).
    * - Media type toggle: Anime / Manga / Both
    * - Initial load fetches a single page (30 items).
    * - Load more appends next pages (page++) until no more results, with dedupe by id.
-   * - Retains sort by popularity (default from API).
+   * - Client-side filters: genres and status (if available on items).
+   * - No popularity sort UI (API handles trending/popularity server-side).
    */
   const { CatalogAPI } = useAppContext();
 
@@ -25,8 +25,7 @@ export function Home() {
   // Filters container state
   const [mediaType, setMediaType] = useState('ANIME'); // 'ANIME' | 'MANGA' | 'BOTH'
   const [genres, setGenres] = useState([]); // array of strings
-  const [status, setStatus] = useState(''); // Informational placeholder
-  const [sort] = useState('POPULARITY_DESC'); // placeholder (API already returns by popularity/trending)
+  const [status, setStatus] = useState(''); // Client-side filter; matches item.status if present
 
   const PER_PAGE = 30;
 
@@ -54,14 +53,18 @@ export function Home() {
       combined = combined.concat(filtered);
     }
 
-    // Client-side filters (genres only at the moment)
+    // Client-side filters: genres and status
     if (genres.length) {
       const want = new Set(genres);
       combined = combined.filter((i) => (i.genres || []).some((g) => want.has(g)));
     }
-    // Status placeholder (no-op)
     if (status) {
-      // If later available, filter by i.status === status
+      // Keep tolerant: some mock/API items might not have explicit status; treat missing as non-match
+      const wanted = String(status).toUpperCase();
+      combined = combined.filter((i) => {
+        const s = (i.status || '').toString().toUpperCase();
+        return s === wanted;
+      });
     }
 
     // Deduplicate by id
@@ -100,7 +103,7 @@ export function Home() {
       }
     })();
     return () => { mounted = false; };
-  }, [mediaType, genres.join(','), status]); // sort currently fixed to popularity
+  }, [mediaType, genres.join(','), status]);
 
   // Load more handler: fetch next page, append with dedupe and end detection
   const onLoadMore = async () => {
@@ -181,16 +184,6 @@ export function Home() {
           <option value="FINISHED">Completed</option>
           <option value="NOT_YET_RELEASED">Upcoming</option>
           <option value="CANCELLED">Cancelled</option>
-        </select>
-        <select
-          className="kc-select"
-          aria-label="Sort"
-          value={sort}
-          onChange={() => {}}
-          disabled
-          title="Popularity sort is applied by default"
-        >
-          <option value="POPULARITY_DESC">Sort: Popularity</option>
         </select>
       </div>
     </div>

@@ -30,7 +30,7 @@ function ProtectedRoute({ children }) {
 function AppShell() {
   /** Main application shell with top bar and routed content. */
   const { user, sessionChecked } = useAppContext();
-  const homeEl = user ? <Navigate to="/dashboard" replace /> : <Home />;
+  const homeEl = <Home />;
 
   return (
     <div className="kc-app">

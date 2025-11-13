@@ -21,5 +21,5 @@ Behavior summary:
 - Catalog loads a single page (30 items) for trending or search.
 - Search uses a simple inline debounce (~300ms) in the TopBar and Home filter.
 - Explicit "Load more" button adds subsequent pages; no infinite scroll.
-- Basic client-side genre/status filters and popularity sort in a container on Home.
+- Basic client-side genre/status filters in a container on Home (no explicit popularity sort control; API provides trending/popularity ordering).
 - GraphQL uses a simple in-memory cache without TTL.
