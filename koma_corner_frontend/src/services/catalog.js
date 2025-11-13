@@ -89,10 +89,17 @@ const DETAILS_FIELDS = `
   externalLinks { site url }
 `;
 
+// Add server-driven filtering for search/trending
 const QUERY_SEARCH = `
-  query SearchMedia($type: MediaType, $page: Int, $perPage: Int, $query: String) {
+  query SearchMedia($type: MediaType, $page: Int, $perPage: Int, $query: String, $status: MediaStatus, $genres: [String]) {
     Page(page: $page, perPage: $perPage) {
-      media(type: $type, search: $query, sort: POPULARITY_DESC) {
+      media(
+        type: $type,
+        search: $query,
+        sort: POPULARITY_DESC,
+        status: $status,
+        genre_in: $genres
+      ) {
         ${LIST_FIELDS}
       }
     }
@@ -100,9 +107,14 @@ const QUERY_SEARCH = `
 `;
 
 const QUERY_TRENDING = `
-  query Trending($type: MediaType, $page: Int, $perPage: Int) {
+  query Trending($type: MediaType, $page: Int, $perPage: Int, $status: MediaStatus, $genres: [String]) {
     Page(page: $page, perPage: $perPage) {
-      media(type: $type, sort: TRENDING_DESC) {
+      media(
+        type: $type,
+        sort: TRENDING_DESC,
+        status: $status,
+        genre_in: $genres
+      ) {
         ${LIST_FIELDS}
       }
     }
@@ -142,16 +154,20 @@ const QUERY_BATCH_MIN = `
   }
 `;
 
+// Helpers
+const DEFAULT_PER_PAGE = Number(process.env.REACT_APP_PAGE_SIZE) || 30;
+
 // PUBLIC_INTERFACE
 export const CatalogAPI = {
   /**
-   * Get trending media for home page (defaults to ANIME).
+   * Get trending media with optional server-driven filters.
    */
-  async getTrendingMedia({ type = 'ANIME', page = 1, perPage = 20 } = {}) {
+  async getTrendingMedia({ type = 'ANIME', page = 1, perPage = DEFAULT_PER_PAGE, status, genres } = {}) {
     try {
+      const vars = { type, page, perPage, status: normalizeStatus(status), genres: normalizeGenres(genres) };
       const data = await graphQLFetch(
         QUERY_TRENDING,
-        { type, page, perPage },
+        vars,
         { cacheBucket: 'trending' }
       );
       const list = data?.Page?.media || [];
@@ -163,27 +179,30 @@ export const CatalogAPI = {
   },
 
   /**
-   * Search media by text query. Defaults to ANIME.
+   * Search media by text query with server-driven filters.
    */
   // PUBLIC_INTERFACE
-  async searchMedia({ query, type = 'ANIME', page = 1, perPage = 20 } = {}) {
+  async searchMedia({ query, type = 'ANIME', page = 1, perPage = DEFAULT_PER_PAGE, status, genres } = {}) {
     const q = String(query || '').trim();
     if (!q) {
       // If no query, show trending to keep UI populated
-      return this.getTrendingMedia({ type, page, perPage });
+      return this.getTrendingMedia({ type, page, perPage, status, genres });
     }
     try {
+      const vars = { query: q, type, page, perPage, status: normalizeStatus(status), genres: normalizeGenres(genres) };
       const data = await graphQLFetch(
         QUERY_SEARCH,
-        { query: q, type, page, perPage },
+        vars,
         { cacheBucket: 'search' }
       );
       const list = data?.Page?.media || [];
       return list.map(mapMediaListItem);
     } catch (e) {
       console.warn('AniList search failed, using mock fallback', e?.message || e);
-      // simple mock local filter
-      return mock.filter((i) => i.title.toLowerCase().includes(q.toLowerCase()));
+      // simple mock local filter + client-side filter for status/genres
+      let base = mock.filter((i) => i.title.toLowerCase().includes(q.toLowerCase()));
+      base = clientFilter(base, { status, genres, type });
+      return base;
     }
   },
 
@@ -202,7 +221,6 @@ export const CatalogAPI = {
       );
       const m = data?.Media;
       if (!m) return null;
-      // include description HTML stripping
       const detailed = mapMediaDetail(m);
       if (!detailed.synopsis && m.description) {
         detailed.synopsis = stripHTML(m.description);
@@ -270,7 +288,6 @@ export const CatalogAPI = {
       }
     };
 
-    // Try anime
     const animeItems = await fetchType('ANIME', unique);
     const animeIds = new Set(animeItems.map((i) => i.id));
     const remaining = unique.filter((id) => !animeIds.has(id));
@@ -288,12 +305,10 @@ export const CatalogAPI = {
 
   /**
    * Compatibility methods for existing UI calls.
-   * list(): for Home initial load - return trending ANIME
-   * getById(): alias for getMediaDetails
    */
   // PUBLIC_INTERFACE
   async list() {
-    return this.getTrendingMedia({ type: 'ANIME', page: 1, perPage: 20 });
+    return this.getTrendingMedia({ type: 'ANIME', page: 1, perPage: DEFAULT_PER_PAGE });
   },
 
   // PUBLIC_INTERFACE
@@ -301,3 +316,30 @@ export const CatalogAPI = {
     return this.getMediaDetails(id);
   },
 };
+
+// Helpers for filters
+function normalizeStatus(status) {
+  const s = String(status || '').toUpperCase();
+  if (!s || s === 'ANY') return null;
+  return s;
+}
+function normalizeGenres(genres) {
+  if (!Array.isArray(genres) || !genres.length) return null;
+  return genres;
+}
+function clientFilter(list, { status, genres, type }) {
+  let out = [...list];
+  if (type && type !== 'BOTH') {
+    out = out.filter(i => (type === 'ANIME' ? i.type === 'Anime' : i.type === 'Manga'));
+  }
+  if (status && status !== 'ANY') {
+    out = out.filter(i => String(i.status || '').toUpperCase() === status);
+  }
+  if (Array.isArray(genres) && genres.length) {
+    out = out.filter(i => {
+      const gs = i.genres || [];
+      return genres.every(g => gs.includes(g));
+    });
+  }
+  return out;
+}

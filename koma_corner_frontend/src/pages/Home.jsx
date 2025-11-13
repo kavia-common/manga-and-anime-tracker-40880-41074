@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 
@@ -28,42 +28,154 @@ function GenrePicker({ selected, onChange, items }) {
 
 // PUBLIC_INTERFACE
 export function Home() {
-  /** Landing page with catalog grid and search using AniList (fallback to mock). */
+  /** Landing page with catalog grid, infinite scroll, server-driven filters, periodic refresh. */
   const { CatalogAPI, search } = useAppContext();
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
   const [mediaType, setMediaType] = useState('BOTH'); // ANIME/MANGA/BOTH
   const [status, setStatus] = useState('ANY'); // FINISHED, RELEASING, etc.
   const [genres, setGenres] = useState([]); // multi
-  const [sort, setSort] = useState('POPULARITY_DESC'); // POPULARITY_DESC, SCORE_DESC, START_DATE_DESC, TITLE_ROMAJI
+  const [sort, setSort] = useState('POPULARITY_DESC'); // currently used client-side
 
   const q = search.trim();
+  const PER_PAGE = Number(process.env.REACT_APP_PAGE_SIZE) || 30;
+  const REFRESH_INTERVAL = Number(process.env.REACT_APP_REFRESH_INTERVAL_MS) || 0;
 
+  const sentinelRef = useRef(null);
+  const fetchingRef = useRef(false); // guard duplicate fetches
+  const lastFetchKeyRef = useRef(''); // key to detect filter/search/type change
+
+  const typeArg = mediaType === 'BOTH' ? 'ANIME' : (mediaType === 'MANGA' ? 'MANGA' : 'ANIME');
+
+  const keyForState = useMemo(() => {
+    return JSON.stringify({
+      q,
+      mediaType,
+      status,
+      genres: (genres || []).slice().sort(),
+    });
+  }, [q, mediaType, status, genres]);
+
+  // Initial and filter/search change loader
   useEffect(() => {
     let mounted = true;
     (async () => {
       setBusy(true);
       setError(null);
+      setPage(1);
+      setHasMore(true);
+      lastFetchKeyRef.current = keyForState;
       try {
-        const typeArg = mediaType === 'BOTH' ? 'ANIME' : (mediaType === 'MANGA' ? 'MANGA' : 'ANIME');
         const data = q
-          ? await CatalogAPI.searchMedia({ query: q, type: typeArg, page: 1, perPage: 30 })
-          : await CatalogAPI.getTrendingMedia({ type: typeArg, page: 1, perPage: 30 });
-        if (mounted) {
-          setItems(data);
-        }
+          ? await CatalogAPI.searchMedia({ query: q, type: typeArg, page: 1, perPage: PER_PAGE, status, genres })
+          : await CatalogAPI.getTrendingMedia({ type: typeArg, page: 1, perPage: PER_PAGE, status, genres });
+        if (!mounted) return;
+        // Deduplicate by id
+        const seen = new Set();
+        const first = (data || []).filter(it => {
+          if (seen.has(String(it.id))) return false;
+          seen.add(String(it.id));
+          return true;
+        });
+        setItems(first);
+        setHasMore((data || []).length >= PER_PAGE);
       } catch (e) {
         console.warn('Home load error:', e);
-        if (mounted) setError('Failed to load catalog. Showing available results.');
+        if (mounted) {
+          setError('Failed to load catalog. Showing available results.');
+          setItems([]);
+          setHasMore(false);
+        }
       } finally {
         if (mounted) setBusy(false);
       }
     })();
     return () => { mounted = false; };
-  }, [CatalogAPI, q, mediaType]);
+  }, [CatalogAPI, keyForState, typeArg, PER_PAGE, q, status, genres]);
 
+  // Load next page
+  const loadMore = useCallback(async () => {
+    if (fetchingRef.current || busy || loadingMore || !hasMore) return;
+    fetchingRef.current = true;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const data = q
+        ? await CatalogAPI.searchMedia({ query: q, type: typeArg, page: nextPage, perPage: PER_PAGE, status, genres })
+        : await CatalogAPI.getTrendingMedia({ type: typeArg, page: nextPage, perPage: PER_PAGE, status, genres });
+      // Only apply if filters didn't change mid-flight
+      if (lastFetchKeyRef.current !== keyForState) return;
+      // Append with dedupe
+      const map = new Map(items.map(i => [String(i.id), i]));
+      (data || []).forEach(it => {
+        const k = String(it.id);
+        if (!map.has(k)) map.set(k, it);
+      });
+      setItems(Array.from(map.values()));
+      setPage(nextPage);
+      setHasMore((data || []).length >= PER_PAGE);
+    } catch (e) {
+      // keep hasMore as is; allow retry
+      console.warn('Load more failed', e);
+    } finally {
+      fetchingRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [page, q, typeArg, PER_PAGE, status, genres, items, busy, loadingMore, hasMore, keyForState, CatalogAPI]);
+
+  // Infinite scroll via IntersectionObserver with fallback button
+  useEffect(() => {
+    if (!hasMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            loadMore();
+          }
+        });
+      }, { rootMargin: '200px' });
+      io.observe(el);
+      return () => io.disconnect();
+    }
+    // Fallback: no observer; user can click "Load more" button
+    return () => {};
+  }, [loadMore, hasMore]);
+
+  // Periodic refresh: re-fetch page 1 and reconcile by ID, without resetting scroll
+  useEffect(() => {
+    if (!REFRESH_INTERVAL || REFRESH_INTERVAL < 1000) return;
+    const id = setInterval(async () => {
+      try {
+        // bypass cache if older than TTL is handled inside graphQL; here we simulate first-page refresh
+        const data = q
+          ? await CatalogAPI.searchMedia({ query: q, type: typeArg, page: 1, perPage: PER_PAGE, status, genres })
+          : await CatalogAPI.getTrendingMedia({ type: typeArg, page: 1, perPage: PER_PAGE, status, genres });
+        // Reconcile items by ID to avoid flashes
+        const byId = new Map(items.map(i => [String(i.id), i]));
+        (data || []).forEach(it => {
+          byId.set(String(it.id), { ...byId.get(String(it.id)), ...it });
+        });
+        const refreshed = Array.from(byId.values());
+        setItems(refreshed);
+        // If first page shrank, adjust hasMore accordingly
+        if ((data || []).length < PER_PAGE && page === 1) {
+          setHasMore(false);
+        }
+      } catch {
+        // ignore periodic failures
+      }
+    }, REFRESH_INTERVAL);
+    return () => clearInterval(id);
+  }, [REFRESH_INTERVAL, q, typeArg, PER_PAGE, status, genres, items, page, CatalogAPI]);
+
+  // Client-side sorting and filtering (additional in case server filters not applied fully)
   const filtered = useMemo(() => {
     let list = [...items];
 
@@ -123,7 +235,9 @@ export function Home() {
               key={t}
               className={mediaType === t ? 'active' : ''}
               aria-selected={mediaType === t}
-              onClick={() => setMediaType(t)}
+              onClick={() => {
+                setMediaType(t);
+              }}
             >
               {t}
             </button>
@@ -157,6 +271,24 @@ export function Home() {
           </Link>
         ))}
       </div>
+      {/* Infinite scroll sentinel */}
+      <div ref={sentinelRef} style={{ height: 1 }} />
+      {/* Fallback Load more button if IntersectionObserver not available or when user prefers clicks */}
+      {hasMore && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
+          <button
+            className="kc-btn"
+            disabled={loadingMore}
+            onClick={loadMore}
+            aria-busy={loadingMore}
+          >
+            {loadingMore ? 'Loading…' : 'Load more'}
+          </button>
+        </div>
+      )}
+      {!hasMore && (
+        <div className="kc-empty">End of list</div>
+      )}
     </div>
   );
 }

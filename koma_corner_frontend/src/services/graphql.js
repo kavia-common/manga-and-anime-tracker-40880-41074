@@ -1,9 +1,6 @@
 const ANILIST_ENDPOINT = 'https://graphql.anilist.co';
 
-/**
- * Simple in-memory cache using Maps.
- * Keys are stringified based on query+variables.
- */
+// Cache entry: { data, ts }
 const cache = {
   search: new Map(),
   trending: new Map(),
@@ -11,19 +8,29 @@ const cache = {
   batch: new Map(),
 };
 
-/**
- * Internal helper to create a cache key.
- */
+const DEFAULT_TTL = Number(process.env.REACT_APP_CACHE_TTL_MS) || 300000; // 5 min
+
 function keyFor(query, variables) {
   return JSON.stringify({ q: query, v: variables || {} });
 }
 
+function isFresh(entry, ttl = DEFAULT_TTL) {
+  if (!entry) return false;
+  return Date.now() - entry.ts < ttl;
+}
+
 // PUBLIC_INTERFACE
-export async function graphQLFetch(query, variables = {}, { cacheBucket } = {}) {
+export async function graphQLFetch(query, variables = {}, { cacheBucket, bypassCache = false, ttlMs } = {}) {
   /** Lightweight GraphQL POST to AniList with JSON/error handling. No auth required. */
   const k = keyFor(query, variables);
-  if (cacheBucket && cache[cacheBucket]?.has(k)) {
-    return cache[cacheBucket].get(k);
+  const bucket = cacheBucket && cache[cacheBucket] ? cache[cacheBucket] : null;
+  const ttl = Number(ttlMs) || DEFAULT_TTL;
+
+  if (!bypassCache && bucket && bucket.has(k)) {
+    const entry = bucket.get(k);
+    if (isFresh(entry, ttl)) {
+      return entry.data;
+    }
   }
 
   const res = await fetch(ANILIST_ENDPOINT, {
@@ -43,8 +50,8 @@ export async function graphQLFetch(query, variables = {}, { cacheBucket } = {}) 
     throw error;
   }
 
-  if (cacheBucket && cache[cacheBucket]) {
-    cache[cacheBucket].set(k, json.data);
+  if (bucket) {
+    bucket.set(k, { data: json.data, ts: Date.now() });
   }
   return json.data;
 }
@@ -60,7 +67,25 @@ export function clearGraphQLCache(bucket) {
 }
 
 // PUBLIC_INTERFACE
+export function invalidateGraphQLCache({ bucket, predicate } = {}) {
+  /** Targeted invalidation: remove entries from a bucket that match predicate(key, entry). */
+  if (!bucket || !cache[bucket]) return;
+  const map = cache[bucket];
+  for (const [k, v] of map.entries()) {
+    try {
+      if (!predicate || predicate(k, v)) {
+        map.delete(k);
+      }
+    } catch {
+      // swallow errors from predicate
+    }
+  }
+}
+
+// PUBLIC_INTERFACE
 export function getCache() {
-  /** Returns the internal cache object for inspection (read-only). */
-  return cache;
+  /** Returns shallow copy of cache sizes for inspection. */
+  const sizes = {};
+  for (const b of Object.keys(cache)) sizes[b] = cache[b].size;
+  return { sizes, raw: cache };
 }

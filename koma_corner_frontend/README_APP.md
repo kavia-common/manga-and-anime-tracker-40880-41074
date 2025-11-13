@@ -36,6 +36,12 @@ Ocean Professional minimalist React SPA for browsing manga/anime, managing a per
    REACT_APP_FEATURE_FLAGS=progress,analytics
    REACT_APP_EXPERIMENTS_ENABLED=false
 
+   # New optional tunables:
+   REACT_APP_PAGE_SIZE=30                # Per-page size for catalog queries (default 30)
+   REACT_APP_SEARCH_DEBOUNCE_MS=300      # Debounce delay for search input (default 300ms)
+   REACT_APP_REFRESH_INTERVAL_MS=300000  # Periodic refresh interval in ms (0 to disable; default disabled)
+   REACT_APP_CACHE_TTL_MS=300000         # TTL for AniList GraphQL cache entries in ms (default 300000)
+
 3) Start the dev server
    npm start
 

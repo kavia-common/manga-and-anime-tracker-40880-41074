@@ -16,3 +16,9 @@ Security notes:
 
 Docs:
 - See README_APP.md for detailed instructions and Supabase schema.
+
+New tunables:
+- REACT_APP_PAGE_SIZE (default 30)
+- REACT_APP_SEARCH_DEBOUNCE_MS (default 300)
+- REACT_APP_REFRESH_INTERVAL_MS (0 disables; suggested 300000)
+- REACT_APP_CACHE_TTL_MS (default 300000)

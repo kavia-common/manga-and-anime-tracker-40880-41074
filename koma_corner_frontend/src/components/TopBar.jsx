@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { safeNavigate } from '../utils/redirects';
+import { debounce } from '../utils/debounce';
 
 // PUBLIC_INTERFACE
 export function TopBar() {
@@ -9,15 +10,15 @@ export function TopBar() {
   const { search, setSearch, user, supabase, envWarning } = useAppContext();
   const navigate = useNavigate();
   const [localSearch, setLocalSearch] = React.useState(search);
-  const debounced = React.useRef(null);
+  const debouncedSetSearch = React.useRef(null);
+
   React.useEffect(() => {
-    // Lazy init debounce
-    if (!debounced.current) {
-      debounced.current = (value) => {
-        setSearch(value);
-      };
-    }
+    debouncedSetSearch.current = debounce((value) => setSearch(value));
+    return () => {
+      debouncedSetSearch.current?.cancel?.();
+    };
   }, [setSearch]);
+
   React.useEffect(() => { setLocalSearch(search); }, [search]);
 
   const onSignOut = async () => {
@@ -25,8 +26,6 @@ export function TopBar() {
       if (supabase) await supabase.auth.signOut();
     } catch (e) {
       // swallow to avoid user-facing errors
-      // optionally log
-      // console.warn('Sign out error', e);
     }
     safeNavigate(navigate, '/', { replace: true });
   };
@@ -45,9 +44,7 @@ export function TopBar() {
             onChange={(e) => {
               const v = e.target.value;
               setLocalSearch(v);
-              // basic debounce
-              if (debounced.currentTimer) clearTimeout(debounced.currentTimer);
-              debounced.currentTimer = setTimeout(() => debounced.current?.(v), 300);
+              debouncedSetSearch.current?.(v);
             }}
           />
         </div>
