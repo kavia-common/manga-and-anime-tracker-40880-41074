@@ -2,12 +2,14 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { safeNavigate } from '../utils/redirects';
+import { useToast } from './Toast';
 
 // PUBLIC_INTERFACE
 export function TopBar() {
   /** Top navigation bar: brand, search, profile/auth button. */
   const { search, setSearch, user, supabase, envWarning } = useAppContext();
   const navigate = useNavigate();
+  const toast = useToast();
   const [localSearch, setLocalSearch] = React.useState(search);
   const timerRef = React.useRef(null);
   const [signingOut, setSigningOut] = React.useState(false);
@@ -34,9 +36,11 @@ export function TopBar() {
     try {
       if (supabase) {
         await withTimeout(supabase.auth.signOut());
+        toast.addToast('Signed out', { type: 'success' });
       }
-    } catch {
-      // swallow to avoid user-facing errors
+    } catch (e) {
+      // provide minimal feedback; still navigate away to avoid being stuck
+      toast.addToast('Sign-out failed (continuing)', { type: 'error' });
     } finally {
       // Navigate to a safe route regardless to avoid being stuck on protected screens.
       safeNavigate(navigate, '/', { replace: true });
@@ -47,6 +51,7 @@ export function TopBar() {
   const onSearchChange = (v) => {
     setLocalSearch(v);
     if (timerRef.current) clearTimeout(timerRef.current);
+    // Debounce 300ms to reduce API calls; update global search which Home listens to.
     timerRef.current = setTimeout(() => setSearch(v), 300);
   };
 

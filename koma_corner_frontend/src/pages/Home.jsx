@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 
@@ -12,8 +12,9 @@ export function Home() {
    * - Client-side filter: genres (with "All" meaning no genre filtering).
    * - Status filter has been removed (UI and logic).
    * - No popularity sort UI (API handles trending/popularity server-side).
+   * - Global TopBar search drives this page via AppContext.search with debounce in TopBar.
    */
-  const { CatalogAPI } = useAppContext();
+  const { CatalogAPI, search } = useAppContext();
 
   // Catalog state
   const [items, setItems] = useState([]);
@@ -28,6 +29,7 @@ export function Home() {
   const [genres, setGenres] = useState([]); // array of strings, empty or includes "All" => no filtering
 
   const PER_PAGE = 30;
+  const lastQueryRef = useRef('');
 
   // Simple catalog genre options (subset common genres). Include "All".
   const GENRE_OPTIONS = [
@@ -36,10 +38,11 @@ export function Home() {
     'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Thriller'
   ];
 
-  // Helper: fetch a page using current filter selections
-  const fetchPage = async ({ page: p }) => {
+  // Helper: fetch a page using current filter selections, honoring search query
+  const fetchPage = async ({ page: p, query }) => {
+    const useSearch = String(query || '').trim().length > 0;
+
     // When Both selected: simple strategy — alternate ANIME and MANGA pages.
-    // For first page, ANIME; for second, MANGA; then repeat. This keeps Load more behavior consistent.
     const resolveTypeForBoth = (pg) => (pg % 2 === 1 ? 'ANIME' : 'MANGA');
 
     const typesToFetch = (() => {
@@ -49,9 +52,11 @@ export function Home() {
 
     let combined = [];
     for (const t of typesToFetch) {
-      const data = await CatalogAPI.getTrendingMedia({ type: t, page: p, perPage: PER_PAGE });
-      const filtered = Array.isArray(data) ? data : [];
-      combined = combined.concat(filtered);
+      const data = useSearch
+        ? await CatalogAPI.searchMedia({ query, type: t, page: p, perPage: PER_PAGE })
+        : await CatalogAPI.getTrendingMedia({ type: t, page: p, perPage: PER_PAGE });
+      const arr = Array.isArray(data) ? data : [];
+      combined = combined.concat(arr);
     }
 
     // Client-side filter: genres
@@ -70,16 +75,19 @@ export function Home() {
     return Array.from(byId.values());
   };
 
-  // Initial load and when filters change: reset to page 1 and fetch
+  // Initial load and when filters OR search change: reset to page 1 and fetch
   useEffect(() => {
     let mounted = true;
+    const q = String(search || '').trim();
+    lastQueryRef.current = q;
+
     (async () => {
       setBusy(true);
       setError(null);
       setPage(1);
       setHasMore(true);
       try {
-        const list = await fetchPage({ page: 1 });
+        const list = await fetchPage({ page: 1, query: q });
         if (!mounted) return;
         const unique = list.slice(0, PER_PAGE);
         setItems(unique);
@@ -97,7 +105,7 @@ export function Home() {
       }
     })();
     return () => { mounted = false; };
-  }, [mediaType, genres.join(',')]);
+  }, [mediaType, genres.join(','), search]);
 
   // Load more handler: fetch next page, append with dedupe and end detection
   const onLoadMore = async () => {
@@ -106,7 +114,7 @@ export function Home() {
     setError(null);
     try {
       const nextPage = page + 1;
-      const list = await fetchPage({ page: nextPage });
+      const list = await fetchPage({ page: nextPage, query: lastQueryRef.current });
 
       // Dedupe by id when appending
       const byId = new Map(items.map((it) => [String(it.id), it]));

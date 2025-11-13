@@ -17,7 +17,10 @@ import { AppProvider, useAppContext } from './context/AppContext';
  */
 // PUBLIC_INTERFACE
 function ProtectedRoute({ children }) {
-  /** Wraps children to require authentication, redirects to /auth if unauthenticated. */
+  /** 
+   * Wraps children to require authentication, redirects to /auth if unauthenticated.
+   * After sign-out, sign-out handlers navigate to "/" to avoid loops on protected routes.
+   */
   const { sessionChecked, user } = useAppContext();
   if (!sessionChecked) {
     // Provide a minimal loading state instead of null to avoid perceived buffering.

@@ -1,5 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { useToast } from '../components/Toast';
+import { safeNavigate } from '../utils/redirects';
 
 // PUBLIC_INTERFACE
 export function Settings() {
@@ -7,6 +10,8 @@ export function Settings() {
   const { user, supabase } = useAppContext();
   const featureFlags = (process.env.REACT_APP_FEATURE_FLAGS || '').split(',').map(s => s.trim()).filter(Boolean);
   const [busy, setBusy] = React.useState(false);
+  const toast = useToast();
+  const navigate = useNavigate();
 
   const withTimeout = async (p, ms = 3000) => {
     let to;
@@ -26,10 +31,13 @@ export function Settings() {
     setBusy(true);
     try {
       await withTimeout(supabase?.auth.signOut?.() ?? Promise.resolve());
+      toast.addToast('Signed out', { type: 'success' });
     } catch {
-      // swallow
+      toast.addToast('Sign-out failed (continuing)', { type: 'error' });
     } finally {
       setBusy(false);
+      // Always route to home to avoid protected route loops
+      safeNavigate(navigate, '/', { replace: true });
     }
   };
 
