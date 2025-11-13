@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { AppProvider } from '../context/AppContext';
 import { Auth } from './Auth';
 
-test('renders Auth buttons', () => {
+test('renders Auth buttons (email/password only)', () => {
   render(
     <AppProvider>
       <MemoryRouter>
@@ -13,5 +13,6 @@ test('renders Auth buttons', () => {
   );
   expect(screen.getByText(/Sign in/i)).toBeInTheDocument();
   expect(screen.getByText(/Create account/i)).toBeInTheDocument();
-  expect(screen.getByText(/Continue with Google/i)).toBeInTheDocument();
+  // Google SSO removed
+  expect(screen.queryByText(/Continue with Google/i)).not.toBeInTheDocument();
 });

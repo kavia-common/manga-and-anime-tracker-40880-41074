@@ -8,7 +8,7 @@ Ocean Professional minimalist React SPA for browsing manga/anime, managing a per
 - My Library (requires auth) with tabs: Rated, Favorites, Current
 - Dashboard with Continue, Favorites, Recommended; Trending for anonymous users
 - Ratings enabled (no notes/comments)
-- Supabase Auth (email/password + Google SSO)
+- Supabase Auth (email/password)
 - Optional Progress tracking (feature flag "progress" and user_progress table)
 - Ocean Professional minimalist styling
 
@@ -20,7 +20,7 @@ Ocean Professional minimalist React SPA for browsing manga/anime, managing a per
    REACT_APP_SUPABASE_URL=<your_supabase_url>
    REACT_APP_SUPABASE_KEY=<your_supabase_anon_key>
    REACT_APP_FRONTEND_URL=http://localhost:3000
-   # Note: FRONTEND_URL must be the exact origin of the app (scheme+host+port). It is used to build safe Supabase emailRedirectTo and OAuth redirect.
+   # Note: FRONTEND_URL must be the exact origin of the app (scheme+host+port). It is used to build safe Supabase emailRedirectTo.
 
    Optional:
    REACT_APP_API_BASE=
@@ -70,14 +70,13 @@ Notes:
 
 ## Authentication
 Koma Corner uses Supabase authentication:
-- Email/password and Google SSO (OAuth).
+- Email/password only.
 - Sign up and sign in are available at /auth.
 - On sign up, Supabase will send a confirmation email and redirect to REACT_APP_FRONTEND_URL after confirmation.
-- Google SSO: enable the Google provider in Supabase Auth settings, set authorized redirect URL to `${REACT_APP_FRONTEND_URL}/auth` and configure OAuth client.
 - Ensure your .env includes:
   - REACT_APP_SUPABASE_URL
   - REACT_APP_SUPABASE_KEY
-  - REACT_APP_FRONTEND_URL (used for email/OAuth redirect targets)
+  - REACT_APP_FRONTEND_URL (used for email redirect targets)
   - Optional: REACT_APP_FEATURE_FLAGS (comma-separated: e.g., "progress,analytics")
 
 Troubleshooting:

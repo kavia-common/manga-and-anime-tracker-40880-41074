@@ -1,6 +1,6 @@
 # Koma Corner Frontend
 
-This is the React SPA for Koma Corner following the Ocean Professional minimalist style. It includes routing, Supabase auth integration, a mock catalog, and ratings (no notes/comments).
+This is the React SPA for Koma Corner following the Ocean Professional minimalist style. It includes routing, Supabase auth integration (email/password), a mock catalog, and ratings (no notes/comments).
 
 Quick start:
 1) npm install
