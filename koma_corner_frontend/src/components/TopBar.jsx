@@ -1,13 +1,12 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { safeNavigate } from '../utils/redirects';
 import { useToast } from './Toast';
 
 // PUBLIC_INTERFACE
 export function TopBar() {
   /** Top navigation bar: brand, search, profile/auth button. */
-  const { search, setSearch, user, supabase, envWarning } = useAppContext();
+  const { search, setSearch, user, envWarning, signOutAndNavigate } = useAppContext();
   const navigate = useNavigate();
   const toast = useToast();
   const [localSearch, setLocalSearch] = React.useState(search);
@@ -16,36 +15,11 @@ export function TopBar() {
 
   React.useEffect(() => { setLocalSearch(search); }, [search]);
 
-  // Promise.race guard to prevent hanging sign-out in rare cases
-  const withTimeout = async (p, ms = 3000) => {
-    let to;
-    try {
-      const res = await Promise.race([
-        p,
-        new Promise((_r, rej) => { to = setTimeout(() => rej(new Error('timeout')), ms); })
-      ]);
-      return res;
-    } finally {
-      if (to) clearTimeout(to);
-    }
-  };
-
   const onSignOut = async () => {
-    if (signingOut) return;
+    if (signingOut) return; // prevent races
     setSigningOut(true);
-    try {
-      if (supabase) {
-        await withTimeout(supabase.auth.signOut());
-        toast.addToast('Signed out', { type: 'success' });
-      }
-    } catch (e) {
-      // provide minimal feedback; still navigate away to avoid being stuck
-      toast.addToast('Sign-out failed (continuing)', { type: 'error' });
-    } finally {
-      // Navigate to a safe route regardless to avoid being stuck on protected screens.
-      safeNavigate(navigate, '/', { replace: true });
-      setSigningOut(false);
-    }
+    await signOutAndNavigate({ navigate, toast });
+    setSigningOut(false);
   };
 
   const onSearchChange = (v) => {

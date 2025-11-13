@@ -69,9 +69,12 @@ If Supabase env vars are not set, the app runs fully in mock mode (catalog + in-
 - If you are signed out or Supabase is not configured, a friendly empty state is displayed.
 
 ## Sign-out behavior
-- Sign-out triggers await supabase.auth.signOut() with a short timeout guard to avoid hanging.
-- Navigation safely redirects to "/" after sign-out regardless of success, and buttons are disabled while the operation is in progress to prevent double clicks.
-- AppContext listens to auth state changes to clear session/user data.
+- A centralized helper signOutAndNavigate() is used across the app (TopBar and Settings) to ensure consistent behavior.
+- supabase.auth.signOut() is called exactly once per click and awaited with a 4s timeout guard; both { error } returns and thrown exceptions are handled.
+- On timeout or failure, the app falls back to a local clear of user/session and shows a toast "Signed out locally". On success, it shows "Signed out".
+- AppContext also listens for onAuthStateChange('SIGNED_OUT') and force-clears local state on any sign-out attempt completion to avoid stale UI.
+- Navigation safely redirects to "/" after sign-out regardless of success, and sign-out buttons are disabled while the operation is in progress to prevent double clicks.
+- In-flight fetches are canceled best-effort via an internal flag to avoid races.
 
 ## Supabase Setup (Schema)
 See ../../kavia-docs/supabase-schema.md for a concise guide.
