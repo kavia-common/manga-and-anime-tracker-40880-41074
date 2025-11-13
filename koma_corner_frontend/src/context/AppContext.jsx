@@ -39,18 +39,39 @@ export function AppProvider({ children }) {
     let unsub = null;
     let mounted = true;
     (async () => {
-      if (supabase) {
-        const session = await getCurrentSession();
-        if (mounted) setUser(session?.user ?? null);
-        const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
-          setUser(sess?.user ?? null);
-        });
-        unsub = sub?.subscription;
+      try {
+        if (supabase) {
+          // Initial session fetch
+          const session = await getCurrentSession();
+          if (mounted) setUser(session?.user ?? null);
+          // Subscribe to further auth changes
+          const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+            // Update user promptly on any auth state change
+            setUser(sess?.user ?? null);
+            // Ensure sessionChecked is true after first event if it was not yet set
+            setSessionChecked((prev) => prev || true);
+          });
+          unsub = sub?.subscription;
+          // Mark that we have completed the initial session check
+          if (mounted) setSessionChecked(true);
+        } else {
+          // No supabase configured; treat as checked and anonymous
+          if (mounted) {
+            setUser(null);
+            setSessionChecked(true);
+          }
+        }
+      } catch (e) {
+        // On any unexpected error, still unblock the app to avoid indefinite buffering
+        if (mounted) {
+          setUser(null);
+          setSessionChecked(true);
+        }
       }
-      setSessionChecked(true);
     })();
     return () => {
       if (unsub) unsub.unsubscribe();
+      mounted = false;
     };
   }, [supabase]);
 

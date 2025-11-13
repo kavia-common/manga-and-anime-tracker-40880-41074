@@ -19,7 +19,10 @@ import { AppProvider, useAppContext } from './context/AppContext';
 function ProtectedRoute({ children }) {
   /** Wraps children to require authentication, redirects to /auth if unauthenticated. */
   const { sessionChecked, user } = useAppContext();
-  if (!sessionChecked) return null; // wait for session load
+  if (!sessionChecked) {
+    // Provide a minimal loading state instead of null to avoid perceived buffering.
+    return <div className="kc-empty">Loading…</div>;
+  }
   return user ? children : <Navigate to="/auth" replace />;
 }
 

@@ -11,7 +11,7 @@ export function Auth() {
    * - Safe redirect support: accepts ?redirect=/path and validates same-origin path
    * If env vars are missing, shows information and disables controls.
    */
-  const { supabase, envWarning } = useAppContext();
+  const { supabase, envWarning, user } = useAppContext();
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
   const [busy, setBusy] = useState(false);
@@ -31,6 +31,13 @@ export function Auth() {
     }
   }, [location?.search]);
 
+  // If already authenticated, do not show the auth form; redirect to afterAuth
+  React.useEffect(() => {
+    if (user) {
+      safeNavigate(navigate, afterAuth, { replace: true, fallback: defaultAfterAuth });
+    }
+  }, [user, afterAuth, navigate]);
+
   const guard = () => {
     if (!supabase) {
       setError(envWarning || 'Supabase is not configured.');
@@ -39,18 +46,29 @@ export function Auth() {
     return true;
   };
 
+  const [submitTick, setSubmitTick] = useState(0);
+
   const signIn = async (e) => {
     e.preventDefault();
+    if (busy) return; // guard against double submit
     setError(null);
     if (!guard()) return;
     setBusy(true);
+    setSubmitTick((t) => t + 1);
     try {
-      const { error: err } = await supabase.auth.signInWithPassword({ email, password: pass });
+      const { data, error: err } = await supabase.auth.signInWithPassword({ email, password: pass });
       if (err) {
-        setError(err.message);
-      } else {
-        safeNavigate(navigate, afterAuth, { replace: true, fallback: defaultAfterAuth });
+        setError(err.message || 'Failed to sign in.');
+        return;
       }
+      if (!data?.user && !data?.session) {
+        // In rare cases, Supabase returns no session immediately; rely on auth listener but still navigate
+        // Only navigate to a safe default to break any pending UI waits.
+        safeNavigate(navigate, afterAuth, { replace: true, fallback: defaultAfterAuth });
+        return;
+      }
+      // Successful sign-in: navigate to intended destination
+      safeNavigate(navigate, afterAuth, { replace: true, fallback: defaultAfterAuth });
     } catch (ex) {
       setError(ex?.message || 'Unexpected error during sign-in.');
     } finally {
@@ -60,12 +78,14 @@ export function Auth() {
 
   const signUp = async (e) => {
     e.preventDefault();
+    if (busy) return; // guard against double submit
     setError(null);
     if (!guard()) return;
     setBusy(true);
+    setSubmitTick((t) => t + 1);
     try {
       const emailRedirectTo = buildSupabaseRedirectTo(afterAuth || defaultAfterAuth);
-      const { error: err } = await supabase.auth.signUp({
+      const { data, error: err } = await supabase.auth.signUp({
         email,
         password: pass,
         options: {
@@ -73,11 +93,11 @@ export function Auth() {
         }
       });
       if (err) {
-        setError(err.message);
-      } else {
-        // After initiating sign-up, navigate to target (user may need to confirm email)
-        safeNavigate(navigate, afterAuth, { replace: true, fallback: defaultAfterAuth });
+        setError(err.message || 'Failed to sign up.');
+        return;
       }
+      // For email confirmation flows, user may be null until email confirmed; still navigate safely
+      safeNavigate(navigate, afterAuth, { replace: true, fallback: defaultAfterAuth });
     } catch (ex) {
       setError(ex?.message || 'Unexpected error during sign-up.');
     } finally {
