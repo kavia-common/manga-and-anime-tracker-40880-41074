@@ -85,11 +85,35 @@ export function Auth() {
     }
   };
 
+  const signInWithGoogle = async () => {
+    setError(null);
+    if (!guard()) return;
+    setBusy(true);
+    try {
+      const redirectTo = buildSupabaseRedirectTo(afterAuth || defaultAfterAuth);
+      const { error: err } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo }
+      });
+      if (err) setError(err.message);
+    } catch (ex) {
+      setError(ex?.message || 'Unexpected error during OAuth.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div style={{ maxWidth: 420, margin: '40px auto' }}>
       <h2>Sign in</h2>
       {envWarning && <div className="kc-env-warn" style={{ marginBottom: 12 }}>{envWarning}</div>}
       {error && <div className="kc-pill kc-danger" role="alert" aria-live="polite" style={{ marginBottom: 12 }}>{error}</div>}
+
+      <div style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
+        <button type="button" className="kc-btn" onClick={signInWithGoogle} disabled={busy || !supabase}>
+          Continue with Google
+        </button>
+      </div>
 
       <form onSubmit={signIn}>
         <div style={{ display: 'grid', gap: 10 }}>

@@ -7,6 +7,8 @@ import { Home } from './pages/Home';
 import { Detail } from './pages/Detail';
 import { Library } from './pages/Library';
 import { Auth } from './pages/Auth';
+import { Dashboard } from './pages/Dashboard';
+import { Settings } from './pages/Settings';
 import { AppProvider, useAppContext } from './context/AppContext';
 
 /**
@@ -24,12 +26,16 @@ function ProtectedRoute({ children }) {
 // PUBLIC_INTERFACE
 function AppShell() {
   /** Main application shell with top bar and routed content. */
+  const { user, sessionChecked } = useAppContext();
+  const homeEl = user ? <Navigate to="/dashboard" replace /> : <Home />;
+
   return (
     <div className="kc-app">
       <TopBar />
       <main className="kc-main">
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={homeEl} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/title/:id" element={<Detail />} />
           <Route
             path="/library"
@@ -39,8 +45,16 @@ function AppShell() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/auth" element={<Auth />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to={user ? "/dashboard" : "/"} replace />} />
         </Routes>
       </main>
     </div>

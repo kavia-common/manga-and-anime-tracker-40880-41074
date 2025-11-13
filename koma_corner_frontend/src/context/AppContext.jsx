@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { getSupabase, getEnvWarning, getCurrentSession } from '../supabaseClient';
 import { CatalogAPI } from '../services/catalog';
 import { RatingsService, ListsService } from '../services/supabaseData';
+import { ToastProvider } from '../components/Toast';
 
 // PUBLIC_INTERFACE
 export const AppContext = createContext(null);
@@ -53,15 +54,21 @@ export function AppProvider({ children }) {
     };
   }, [supabase]);
 
-  // When user changes and supabase exists, fetch persisted ratings
+  // When user changes and supabase exists, fetch persisted ratings and lists
   useEffect(() => {
     let mounted = true;
     (async () => {
       if (supabase && user) {
         const map = await RatingsService.loadAll();
-        if (mounted) setRatings(map);
+        const names = ['favorite', 'current', 'plan', 'completed'];
+        const entries = await Promise.all(names.map(n => ListsService.loadList(n).then(arr => [n, arr])));
+        const listsObj = Object.fromEntries(entries);
+        if (mounted) {
+          setRatings(map);
+          setLists(listsObj);
+        }
       } else if (!supabase) {
-        // leave ratings as-is for mock mode
+        // mock mode
       } else {
         // signed out
         setRatings({});
@@ -164,5 +171,9 @@ export function AppProvider({ children }) {
     CatalogAPI
   };
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+      <ToastProvider>{children}</ToastProvider>
+    </AppContext.Provider>
+  );
 }

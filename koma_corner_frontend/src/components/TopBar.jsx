@@ -8,6 +8,17 @@ export function TopBar() {
   /** Top navigation bar: brand, search, profile/auth button. */
   const { search, setSearch, user, supabase, envWarning } = useAppContext();
   const navigate = useNavigate();
+  const [localSearch, setLocalSearch] = React.useState(search);
+  const debounced = React.useRef(null);
+  React.useEffect(() => {
+    // Lazy init debounce
+    if (!debounced.current) {
+      debounced.current = (value) => {
+        setSearch(value);
+      };
+    }
+  }, [setSearch]);
+  React.useEffect(() => { setLocalSearch(search); }, [search]);
 
   const onSignOut = async () => {
     try {
@@ -30,8 +41,14 @@ export function TopBar() {
           <input
             aria-label="Search titles"
             placeholder="Search titles..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={localSearch}
+            onChange={(e) => {
+              const v = e.target.value;
+              setLocalSearch(v);
+              // basic debounce
+              if (debounced.currentTimer) clearTimeout(debounced.currentTimer);
+              debounced.currentTimer = setTimeout(() => debounced.current?.(v), 300);
+            }}
           />
         </div>
         <div className="kc-profile">

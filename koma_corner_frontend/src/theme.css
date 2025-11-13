@@ -213,3 +213,107 @@ html, body, #root {
   border-radius: 10px;
   font-size: 13px;
 }
+
+/* Filters toolbar */
+.kc-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.kc-select, .kc-multiselect, .kc-input {
+  border: 1px solid var(--kc-border);
+  background: var(--kc-surface);
+  color: var(--kc-text);
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+.kc-toggle {
+  display: inline-flex;
+  border: 1px solid var(--kc-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.kc-toggle button {
+  border: none;
+  background: transparent;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.kc-toggle .active {
+  background: var(--kc-primary);
+  color: #fff;
+}
+
+/* Tabs */
+.kc-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--kc-border);
+  margin-bottom: 12px;
+}
+.kc-tab {
+  padding: 8px 12px;
+  border-radius: 10px 10px 0 0;
+  cursor: pointer;
+  color: var(--kc-muted);
+}
+.kc-tab.active {
+  color: var(--kc-text);
+  background: var(--kc-surface);
+  border: 1px solid var(--kc-border);
+  border-bottom-color: var(--kc-surface);
+}
+
+/* Badges */
+.kc-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--kc-border);
+  font-size: 11px;
+  color: var(--kc-muted);
+}
+.kc-badge.success {
+  color: var(--kc-success);
+  border-color: #D1FAE5;
+  background: #ECFDF5;
+}
+
+/* Toasts */
+.kc-toast-wrap {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+}
+.kc-toast {
+  background: var(--kc-bg);
+  border: 1px solid var(--kc-border);
+  border-left: 4px solid var(--kc-primary);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: var(--kc-shadow);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kc-toast.success { border-left-color: var(--kc-success); }
+.kc-toast.error { border-left-color: var(--kc-error); }
+.kc-toast-close {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--kc-muted);
+}
+
+/* Focus styles */
+a:focus, button:focus, input:focus, select:focus {
+  outline: 2px solid #93C5FD;
+  outline-offset: 2px;
+}

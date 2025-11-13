@@ -1,11 +1,12 @@
-import { getSupabase } from '../supabaseClient';
+import { getSupabase, tableExists } from '../supabaseClient';
 
 /**
- * Supabase-backed data access for user_ratings and user_lists.
+ * Supabase-backed data access for user_ratings, user_lists, and optional user_progress.
  * All methods are tolerant of missing Supabase config and will no-op or return empty results.
  */
 const TABLE_RATINGS = 'user_ratings';
 const TABLE_LISTS = 'user_lists';
+const TABLE_PROGRESS = 'user_progress';
 
 // PUBLIC_INTERFACE
 export const RatingsService = {
@@ -18,6 +19,7 @@ export const RatingsService = {
       .select('media_id, rating');
     if (error) {
       // Swallow errors to keep UI usable in mock mode
+      // eslint-disable-next-line no-console
       console.warn('RatingsService.loadAll error', error);
       return {};
     }
@@ -41,12 +43,13 @@ export const RatingsService = {
       .from(TABLE_RATINGS)
       .upsert(payload, { onConflict: 'user_id,media_id,media_type' });
     if (error) {
+      // eslint-disable-next-line no-console
       console.warn('RatingsService.upsert error', error);
       return { ok: false, error: error.message };
     }
     return { ok: true };
   },
-  /** Delete a rating (used if user clears rating; UI currently only sets 1..5 so this is kept for completeness). */
+  /** Delete a rating (kept for completeness). */
   async remove({ media_id, media_type }) {
     const supabase = getSupabase();
     if (!supabase) return { ok: false, error: 'Supabase not configured' };
@@ -56,6 +59,7 @@ export const RatingsService = {
       .eq('media_id', media_id)
       .eq('media_type', media_type);
     if (error) {
+      // eslint-disable-next-line no-console
       console.warn('RatingsService.remove error', error);
       return { ok: false, error: error.message };
     }
@@ -74,6 +78,7 @@ export const ListsService = {
       .select('media_id, media_type, list_name')
       .eq('list_name', list_name);
     if (error) {
+      // eslint-disable-next-line no-console
       console.warn('ListsService.loadList error', error);
       return [];
     }
@@ -87,6 +92,7 @@ export const ListsService = {
       .from(TABLE_LISTS)
       .upsert({ media_id, media_type, list_name });
     if (error) {
+      // eslint-disable-next-line no-console
       console.warn('ListsService.add error', error);
       return { ok: false, error: error.message };
     }
@@ -103,9 +109,55 @@ export const ListsService = {
       .eq('media_type', media_type)
       .eq('list_name', list_name);
     if (error) {
+      // eslint-disable-next-line no-console
       console.warn('ListsService.remove error', error);
       return { ok: false, error: error.message };
     }
+    return { ok: true };
+  },
+};
+
+/**
+ * Optional Progress Service guarded by feature flag and table existence.
+ */
+// PUBLIC_INTERFACE
+export const ProgressService = {
+  /** Check availability: feature flag and table exists. */
+  async isAvailable() {
+    const flags = (process.env.REACT_APP_FEATURE_FLAGS || '').split(',').map(s => s.trim());
+    if (!flags.includes('progress')) return false;
+    const sb = getSupabase();
+    if (!sb) return false;
+    try {
+      return await tableExists(TABLE_PROGRESS);
+    } catch {
+      return false;
+    }
+  },
+  /** Load last progress record for a media item. */
+  async get({ media_id, media_type }) {
+    const sb = getSupabase();
+    if (!sb) return null;
+    const { data, error } = await sb
+      .from(TABLE_PROGRESS)
+      .select('media_id, media_type, last_unit')
+      .eq('media_id', media_id)
+      .eq('media_type', media_type)
+      .limit(1);
+    if (error) return null;
+    return Array.isArray(data) && data[0] ? data[0] : null;
+  },
+  /** Upsert progress value (chapter/episode). */
+  async upsert({ media_id, media_type, last_unit }) {
+    const sb = getSupabase();
+    if (!sb) return { ok: false, error: 'Supabase not configured' };
+    const { error } = await sb
+      .from(TABLE_PROGRESS)
+      .upsert(
+        { media_id, media_type, last_unit, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id,media_id,media_type' }
+      );
+    if (error) return { ok: false, error: error.message };
     return { ok: true };
   },
 };

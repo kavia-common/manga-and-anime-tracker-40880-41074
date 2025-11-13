@@ -25,11 +25,29 @@ export function getEnvWarning() {
   return envWarning;
 }
 
-// PUBLIC_INTERFACE
+ // PUBLIC_INTERFACE
 export async function getCurrentSession() {
   /** Retrieves current Supabase auth session if configured; else returns null. */
   const client = getSupabase();
   if (!client) return null;
   const { data } = await client.auth.getSession();
   return data?.session ?? null;
+}
+
+/**
+ * PUBLIC_INTERFACE
+ * Determine whether a table exists (best-effort). Requires anon to have access to pg_catalog or fallback query try.
+ */
+export async function tableExists(table) {
+  /** Check if table exists by attempting a minimal select with limit 0. */
+  const client = getSupabase();
+  if (!client) return false;
+  try {
+    // try select with limit 0 - if table missing, error comes back
+    const { error } = await client.from(table).select('id', { count: 'exact', head: true });
+    if (error && String(error.message || '').toLowerCase().includes('relation')) return false;
+    return !error;
+  } catch {
+    return false;
+  }
 }
