@@ -13,11 +13,6 @@ function mapMediaListItem(m) {
     cover: m.coverImage?.large || m.coverImage?.medium || m.bannerImage || '',
     genres: Array.isArray(m.genres) ? m.genres.filter(Boolean) : [],
     synopsis: m.description ? stripHTML(m.description) : '',
-    averageScore: m.averageScore || null,
-    format: m.format || null,
-    status: m.status || null,
-    episodes: m.episodes || null,
-    chapters: m.chapters || null,
   };
 }
 
@@ -31,10 +26,6 @@ function mapMediaDetail(m) {
     studios: (m.studios?.edges || [])
       .filter(e => e?.node?.name)
       .map(e => e.node.name),
-    publishers: (m.staff?.edges || [])
-      .filter(e => e?.role && String(e.role).toLowerCase().includes('publisher'))
-      .map(e => e.node?.name?.full)
-      .filter(Boolean),
     externalLinks: (m.externalLinks || []).map(l => ({
       site: l.site,
       url: l.url,
@@ -56,11 +47,6 @@ function stripHTML(s) {
 const LIST_FIELDS = `
   id
   type
-  format
-  status
-  averageScore
-  episodes
-  chapters
   title { romaji english native }
   coverImage { medium large }
   bannerImage
@@ -72,12 +58,6 @@ const LIST_FIELDS = `
 const DETAILS_FIELDS = `
   id
   type
-  format
-  status
-  averageScore
-  episodes
-  chapters
-  volumes
   title { romaji english native }
   coverImage { medium large }
   bannerImage
@@ -89,16 +69,13 @@ const DETAILS_FIELDS = `
   externalLinks { site url }
 `;
 
-// Add server-driven filtering for search/trending
 const QUERY_SEARCH = `
-  query SearchMedia($type: MediaType, $page: Int, $perPage: Int, $query: String, $status: MediaStatus, $genres: [String]) {
+  query SearchMedia($type: MediaType, $page: Int, $perPage: Int, $query: String) {
     Page(page: $page, perPage: $perPage) {
       media(
         type: $type,
         search: $query,
-        sort: POPULARITY_DESC,
-        status: $status,
-        genre_in: $genres
+        sort: POPULARITY_DESC
       ) {
         ${LIST_FIELDS}
       }
@@ -107,13 +84,11 @@ const QUERY_SEARCH = `
 `;
 
 const QUERY_TRENDING = `
-  query Trending($type: MediaType, $page: Int, $perPage: Int, $status: MediaStatus, $genres: [String]) {
+  query Trending($type: MediaType, $page: Int, $perPage: Int) {
     Page(page: $page, perPage: $perPage) {
       media(
         type: $type,
-        sort: TRENDING_DESC,
-        status: $status,
-        genre_in: $genres
+        sort: TRENDING_DESC
       ) {
         ${LIST_FIELDS}
       }
@@ -155,16 +130,16 @@ const QUERY_BATCH_MIN = `
 `;
 
 // Helpers
-const DEFAULT_PER_PAGE = Number(process.env.REACT_APP_PAGE_SIZE) || 30;
+const DEFAULT_PER_PAGE = 30;
 
 // PUBLIC_INTERFACE
 export const CatalogAPI = {
   /**
-   * Get trending media with optional server-driven filters.
+   * Get trending media (page 1..N though UI will use 1 only).
    */
-  async getTrendingMedia({ type = 'ANIME', page = 1, perPage = DEFAULT_PER_PAGE, status, genres } = {}) {
+  async getTrendingMedia({ type = 'ANIME', page = 1, perPage = DEFAULT_PER_PAGE } = {}) {
     try {
-      const vars = { type, page, perPage, status: normalizeStatus(status), genres: normalizeGenres(genres) };
+      const vars = { type, page, perPage };
       const data = await graphQLFetch(
         QUERY_TRENDING,
         vars,
@@ -179,17 +154,16 @@ export const CatalogAPI = {
   },
 
   /**
-   * Search media by text query with server-driven filters.
+   * Search media by text query.
    */
   // PUBLIC_INTERFACE
-  async searchMedia({ query, type = 'ANIME', page = 1, perPage = DEFAULT_PER_PAGE, status, genres } = {}) {
+  async searchMedia({ query, type = 'ANIME', page = 1, perPage = DEFAULT_PER_PAGE } = {}) {
     const q = String(query || '').trim();
     if (!q) {
-      // If no query, show trending to keep UI populated
-      return this.getTrendingMedia({ type, page, perPage, status, genres });
+      return this.getTrendingMedia({ type, page, perPage });
     }
     try {
-      const vars = { query: q, type, page, perPage, status: normalizeStatus(status), genres: normalizeGenres(genres) };
+      const vars = { query: q, type, page, perPage };
       const data = await graphQLFetch(
         QUERY_SEARCH,
         vars,
@@ -199,9 +173,7 @@ export const CatalogAPI = {
       return list.map(mapMediaListItem);
     } catch (e) {
       console.warn('AniList search failed, using mock fallback', e?.message || e);
-      // simple mock local filter + client-side filter for status/genres
       let base = mock.filter((i) => i.title.toLowerCase().includes(q.toLowerCase()));
-      base = clientFilter(base, { status, genres, type });
       return base;
     }
   },
@@ -258,7 +230,6 @@ export const CatalogAPI = {
 
   /**
    * Batch minimal info for a list of IDs (used by Library to render rated items).
-   * Note: We do not know which IDs are anime vs manga from ratings, so try ANIME first then MANGA for misses.
    */
   // PUBLIC_INTERFACE
   async getMinimalByIds(ids = []) {
@@ -316,30 +287,3 @@ export const CatalogAPI = {
     return this.getMediaDetails(id);
   },
 };
-
-// Helpers for filters
-function normalizeStatus(status) {
-  const s = String(status || '').toUpperCase();
-  if (!s || s === 'ANY') return null;
-  return s;
-}
-function normalizeGenres(genres) {
-  if (!Array.isArray(genres) || !genres.length) return null;
-  return genres;
-}
-function clientFilter(list, { status, genres, type }) {
-  let out = [...list];
-  if (type && type !== 'BOTH') {
-    out = out.filter(i => (type === 'ANIME' ? i.type === 'Anime' : i.type === 'Manga'));
-  }
-  if (status && status !== 'ANY') {
-    out = out.filter(i => String(i.status || '').toUpperCase() === status);
-  }
-  if (Array.isArray(genres) && genres.length) {
-    out = out.filter(i => {
-      const gs = i.genres || [];
-      return genres.every(g => gs.includes(g));
-    });
-  }
-  return out;
-}

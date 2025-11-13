@@ -17,8 +17,8 @@ Security notes:
 Docs:
 - See README_APP.md for detailed instructions and Supabase schema.
 
-New tunables:
-- REACT_APP_PAGE_SIZE (default 30)
-- REACT_APP_SEARCH_DEBOUNCE_MS (default 300)
-- REACT_APP_REFRESH_INTERVAL_MS (0 disables; suggested 300000)
-- REACT_APP_CACHE_TTL_MS (default 300000)
+Behavior summary:
+- Catalog loads a single page (30 items) for trending or search.
+- Search uses a simple inline debounce (~300ms) in the TopBar.
+- No periodic refresh or infinite scroll.
+- GraphQL uses a simple in-memory cache without TTL.

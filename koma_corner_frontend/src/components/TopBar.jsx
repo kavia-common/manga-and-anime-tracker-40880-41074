@@ -2,7 +2,6 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { safeNavigate } from '../utils/redirects';
-import { debounce } from '../utils/debounce';
 
 // PUBLIC_INTERFACE
 export function TopBar() {
@@ -10,14 +9,7 @@ export function TopBar() {
   const { search, setSearch, user, supabase, envWarning } = useAppContext();
   const navigate = useNavigate();
   const [localSearch, setLocalSearch] = React.useState(search);
-  const debouncedSetSearch = React.useRef(null);
-
-  React.useEffect(() => {
-    debouncedSetSearch.current = debounce((value) => setSearch(value));
-    return () => {
-      debouncedSetSearch.current?.cancel?.();
-    };
-  }, [setSearch]);
+  const timerRef = React.useRef(null);
 
   React.useEffect(() => { setLocalSearch(search); }, [search]);
 
@@ -30,6 +22,18 @@ export function TopBar() {
     safeNavigate(navigate, '/', { replace: true });
   };
 
+  const onSearchChange = (v) => {
+    setLocalSearch(v);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setSearch(v), 300);
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
   return (
     <header className="kc-topbar">
       <div className="kc-topbar-inner">
@@ -41,11 +45,7 @@ export function TopBar() {
             aria-label="Search titles"
             placeholder="Search titles..."
             value={localSearch}
-            onChange={(e) => {
-              const v = e.target.value;
-              setLocalSearch(v);
-              debouncedSetSearch.current?.(v);
-            }}
+            onChange={(e) => onSearchChange(e.target.value)}
           />
         </div>
         <div className="kc-profile">
