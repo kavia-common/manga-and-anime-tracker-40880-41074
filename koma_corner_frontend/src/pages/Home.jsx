@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { TitleGrid } from '../components/TitleGrid';
 
 // PUBLIC_INTERFACE
 export function Home() {
@@ -208,8 +209,10 @@ export function Home() {
 
       {FiltersBox}
 
-      <div className="kc-grid">
-        {listForRender.map(item => (
+      <TitleGrid
+        items={listForRender}
+        gap={24}
+        renderItem={(item) => (
           <Link to={`/title/${item.id}`} key={item.id} className="kc-card">
             <img src={item.cover} alt={item.title} loading="lazy" />
             <div className="kc-card-body">
@@ -218,8 +221,8 @@ export function Home() {
               {item.genres?.length ? <div className="kc-subtle">{item.genres.join(', ')}</div> : null}
             </div>
           </Link>
-        ))}
-      </div>
+        )}
+      />
 
       <div className="kc-section" style={{ justifyContent: 'center', marginTop: 16 }}>
         {hasMore ? (

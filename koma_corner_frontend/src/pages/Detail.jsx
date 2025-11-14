@@ -5,6 +5,7 @@ import { Rating } from '../components/Rating';
 import { useToast } from '../components/Toast';
 import { ListsService, ProgressService } from '../services/supabaseData';
 import { safeNavigate } from '../utils/redirects';
+import { TitleGrid } from '../components/TitleGrid';
 // Note: this page uses only history navigation (-1) and internal Links; no external redirects.
 
 // PUBLIC_INTERFACE
@@ -166,24 +167,29 @@ export function Detail() {
       <div className="kc-section" style={{ marginTop: 18 }}>
         <h3 style={{ margin: 0 }}>Recommendations</h3>
       </div>
-      <div className="kc-grid">
-        {(recs || []).map(r => (
-          <Link
-            to={`/title/${r.id}`}
-            key={`rec-${r.id}`}
-            className="kc-card"
-            role="link"
-            aria-label={`View details for ${r.title}`}
-          >
-            <img src={r.cover} alt={r.title} loading="lazy" />
-            <div className="kc-card-body">
-              <div className="kc-title">{r.title}</div>
-              <div className="kc-subtle">{r.type}{r.year ? ` • ${r.year}` : ''}</div>
-            </div>
-          </Link>
-        ))}
-        {!recs?.length && <div className="kc-empty">No recommendations yet.</div>}
-      </div>
+      {Array.isArray(recs) && recs.length > 0 ? (
+        <TitleGrid
+          items={recs}
+          gap={24}
+          renderItem={(r) => (
+            <Link
+              to={`/title/${r.id}`}
+              key={`rec-${r.id}`}
+              className="kc-card"
+              role="link"
+              aria-label={`View details for ${r.title}`}
+            >
+              <img src={r.cover} alt={r.title} loading="lazy" />
+              <div className="kc-card-body">
+                <div className="kc-title">{r.title}</div>
+                <div className="kc-subtle">{r.type}{r.year ? ` • ${r.year}` : ''}</div>
+              </div>
+            </Link>
+          )}
+        />
+      ) : (
+        <div className="kc-empty">No recommendations yet.</div>
+      )}
     </div>
   );
 }

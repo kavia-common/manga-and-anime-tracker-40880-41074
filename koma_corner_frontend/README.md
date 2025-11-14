@@ -18,6 +18,9 @@ Docs:
 - See README_APP.md for detailed instructions and Supabase schema.
 
 Behavior summary:
+
+Grid system:
+- Title cards across Home, Dashboard sections, Detail (recommendations), and Library use a shared 4-column TitleGrid with horizontal scroll on narrow screens to ensure exactly 4 items per row.
 - Catalog loads a single page (30 items) for trending or search.
 - Search uses a simple inline debounce (~300ms) in the TopBar and Home filter.
 - Explicit "Load more" button adds subsequent pages; no infinite scroll.

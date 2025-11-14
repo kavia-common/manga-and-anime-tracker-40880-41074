@@ -97,9 +97,34 @@ html, body, #root {
 }
 
 .kc-grid {
+  /* Legacy generic grid; preserved but not used for title grids anymore */
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 16px;
+}
+
+/* Strict 4-column TitleGrid with horizontal scroll on narrow screens */
+.kc-title-grid-wrap {
+  /* Horizontal scroll container guards the grid from shrinking below min width */
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* The inner grid keeps exactly 4 columns, with a min width to avoid wrapping count changes */
+.kc-title-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)); /* exactly 4 columns */
+  gap: var(--kc-grid-gap, 24px); /* Ocean Professional spacing default */
+  /* Minimum card width assumption: 220px image + padding => ~240px cell; 4 * 240 + 3 * 24 = 1032px */
+  min-width: 1032px; /* ensures 4 columns never collapse on narrow screens */
+  /* Let it expand to container width on large screens while keeping 4 columns */
+  width: 100%;
+}
+
+/* Each cell contains the card; no extra behavior needed but available for future hooks */
+.kc-title-grid-cell {
+  min-width: 0; /* allow content to shrink without overflowing */
 }
 
 .kc-card {

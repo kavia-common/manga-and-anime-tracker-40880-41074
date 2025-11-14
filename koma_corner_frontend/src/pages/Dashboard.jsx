@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { logEvent } from '../utils/analytics';
+import { TitleGrid } from '../components/TitleGrid';
 
 // PUBLIC_INTERFACE
 export function Dashboard() {
@@ -100,8 +101,10 @@ export function Dashboard() {
               <span className="kc-subtle">{current.length} items</span>
             </div>
             {current.length ? (
-              <div className="kc-grid">
-                {current.map(item => (
+              <TitleGrid
+                items={current}
+                gap={24}
+                renderItem={(item) => (
                   <Link to={`/title/${item.id}`} key={item.id} className="kc-card">
                     <img src={item.cover} alt={item.title} loading="lazy" />
                     <div className="kc-card-body">
@@ -109,8 +112,8 @@ export function Dashboard() {
                       <div className="kc-badge">Current</div>
                     </div>
                   </Link>
-                ))}
-              </div>
+                )}
+              />
             ) : (
               <div className="kc-empty">No current items yet.</div>
             )}
@@ -122,8 +125,10 @@ export function Dashboard() {
               <span className="kc-subtle">{favorites.length} items</span>
             </div>
             {favorites.length ? (
-              <div className="kc-grid">
-                {favorites.map(item => (
+              <TitleGrid
+                items={favorites}
+                gap={24}
+                renderItem={(item) => (
                   <Link to={`/title/${item.id}`} key={item.id} className="kc-card">
                     <img src={item.cover} alt={item.title} loading="lazy" />
                     <div className="kc-card-body">
@@ -131,8 +136,8 @@ export function Dashboard() {
                       <div className="kc-badge success">★ Favorite</div>
                     </div>
                   </Link>
-                ))}
-              </div>
+                )}
+              />
             ) : (
               <div className="kc-empty">Mark titles as favorites to see them here.</div>
             )}
@@ -144,8 +149,10 @@ export function Dashboard() {
         <div className="kc-section">
           <h3 style={{ margin: 0 }}>Recommended</h3>
         </div>
-        <div className="kc-grid">
-          {recommended.map(item => (
+        <TitleGrid
+          items={recommended}
+          gap={24}
+          renderItem={(item) => (
             <Link to={`/title/${item.id}`} key={item.id} className="kc-card">
               <img src={item.cover} alt={item.title} loading="lazy" />
               <div className="kc-card-body">
@@ -153,16 +160,18 @@ export function Dashboard() {
                 <div className="kc-subtle">{item.type}{item.year ? ` • ${item.year}` : ''}</div>
               </div>
             </Link>
-          ))}
-        </div>
+          )}
+        />
       </section>
 
       <section>
         <div className="kc-section">
           <h3 style={{ margin: 0 }}>Trending</h3>
         </div>
-        <div className="kc-grid">
-          {trending.map(item => (
+        <TitleGrid
+          items={trending}
+          gap={24}
+          renderItem={(item) => (
             <Link to={`/title/${item.id}`} key={item.id} className="kc-card">
               <img src={item.cover} alt={item.title} loading="lazy" />
               <div className="kc-card-body">
@@ -170,8 +179,8 @@ export function Dashboard() {
                 <div className="kc-subtle">{item.type}{item.year ? ` • ${item.year}` : ''}</div>
               </div>
             </Link>
-          ))}
-        </div>
+          )}
+        />
       </section>
     </div>
   );

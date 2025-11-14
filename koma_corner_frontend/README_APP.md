@@ -88,6 +88,23 @@ Notes:
 ## Styling
 Palette is defined in src/theme.css.
 
+### Title Grid Layout (Fixed 4 Columns)
+- All pages that display title cards use a fixed 4-column grid via the shared component `src/components/TitleGrid.jsx`.
+- The grid always renders exactly 4 columns (`grid-template-columns: repeat(4, 1fr)`).
+- On viewports narrower than the minimum width required for 4 columns, the container becomes horizontally scrollable instead of changing the column count. This preserves 4 items per row at all sizes.
+- Default gap is 24px to align with the Ocean Professional theme. You can customize via the `gap` prop.
+- Usage:
+  ```jsx
+  import { TitleGrid } from '../components/TitleGrid';
+  <TitleGrid
+    items={data}
+    gap={24}
+    renderItem={(item) => (
+      <div className="kc-card">{/* card content */}</div>
+    )}
+  />
+  ```
+
 ## Feature Flags
 - REACT_APP_FEATURE_FLAGS can enable: 
   - progress: enables progress UI on Detail and uses user_progress table if present.

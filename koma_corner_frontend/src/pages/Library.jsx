@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Rating } from '../components/Rating';
 import { Link } from 'react-router-dom';
+import { TitleGrid } from '../components/TitleGrid';
 
 /**
  * Simple toggle options and mapping to underlying data sources.
@@ -151,17 +152,19 @@ export function Library() {
 
   // Skeleton elements for loading state
   const SkeletonGrid = ({ count = 8 }) => (
-    <div className="kc-grid">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="kc-card" aria-hidden="true">
+    <TitleGrid
+      items={Array.from({ length: count })}
+      gap={24}
+      renderItem={(_, i) => (
+        <div key={`s-${i}`} className="kc-card" aria-hidden="true">
           <div style={{ width: '100%', height: 220, background: 'var(--kc-surface)' }} />
           <div className="kc-card-body">
             <div style={{ width: '70%', height: 12, background: 'var(--kc-surface)' }} />
             <div style={{ width: '40%', height: 10, background: 'var(--kc-surface)', marginTop: 6 }} />
           </div>
         </div>
-      ))}
-    </div>
+      )}
+    />
   );
 
   // Empty/guard states
@@ -209,8 +212,10 @@ export function Library() {
       {isLoading && <SkeletonGrid count={8} />}
 
       {!isLoading && Array.isArray(items) && items.length > 0 && (
-        <div className="kc-grid">
-          {items.map((item) => (
+        <TitleGrid
+          items={items}
+          gap={24}
+          renderItem={(item) => (
             <div key={item.id} className="kc-card">
               <Link to={`/title/${item.id}`}>
                 <img src={item.cover} alt={item.title} loading="lazy" />
@@ -218,7 +223,6 @@ export function Library() {
               <div className="kc-card-body">
                 <div className="kc-title">{item.title}</div>
                 {sel === 'all' ? (
-                  // When showing All, show a small badge if rated or list membership
                   <>
                     {ratings[item.id] ? (
                       <div className="kc-subtle">Rated: {ratings[item.id]} ★</div>
@@ -248,8 +252,8 @@ export function Library() {
                 )}
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        />
       )}
 
       {!isLoading && Array.isArray(items) && items.length === 0 && (
