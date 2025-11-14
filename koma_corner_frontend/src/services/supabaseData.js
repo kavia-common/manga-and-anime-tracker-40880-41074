@@ -33,6 +33,9 @@ export const RatingsService = {
   async upsert({ media_id, media_type, rating }) {
     const supabase = getSupabase();
     if (!supabase) return { ok: false, error: 'Supabase not configured' };
+    if (!media_id || !media_type || !rating) {
+      return { ok: false, error: 'Missing required fields' };
+    }
     const payload = {
       media_id,
       media_type,
@@ -45,7 +48,7 @@ export const RatingsService = {
     if (error) {
       // eslint-disable-next-line no-console
       console.warn('RatingsService.upsert error', error);
-      return { ok: false, error: error.message };
+      return { ok: false, error: error.message || 'Failed to save rating' };
     }
     return { ok: true };
   },
@@ -73,6 +76,7 @@ export const ListsService = {
   async loadList(list_name) {
     const supabase = getSupabase();
     if (!supabase) return [];
+    // RLS ensures only the current user's rows are visible. We do not need to pass user_id in filters.
     const { data, error } = await supabase
       .from(TABLE_LISTS)
       .select('media_id, media_type, list_name')
@@ -84,24 +88,37 @@ export const ListsService = {
     }
     return data || [];
   },
-  /** Add to a named list. */
+  /** Add to a named list. Inserts with implicit user_id via RLS auth.uid(). */
   async add({ media_id, media_type, list_name }) {
     const supabase = getSupabase();
     if (!supabase) return { ok: false, error: 'Supabase not configured' };
+    // Ensure required fields are present
+    if (!media_id || !media_type || !list_name) {
+      return { ok: false, error: 'Missing required fields' };
+    }
+    // Use insert not upsert to surface uniqueness errors clearly; handle 23505 manually as success
     const { error } = await supabase
       .from(TABLE_LISTS)
-      .upsert({ media_id, media_type, list_name });
+      .insert({ media_id, media_type, list_name });
     if (error) {
+      const msg = error.message || '';
+      // If unique constraint violation, treat as success (idempotent add)
+      if (String(error.code) === '23505' || /duplicate key value|unique/i.test(msg)) {
+        return { ok: true, warning: 'Already in list' };
+      }
       // eslint-disable-next-line no-console
       console.warn('ListsService.add error', error);
-      return { ok: false, error: error.message };
+      return { ok: false, error: msg || 'Failed to add to list' };
     }
     return { ok: true };
   },
-  /** Remove from a named list. */
+  /** Remove from a named list. Scoped by RLS to current user. */
   async remove({ media_id, media_type, list_name }) {
     const supabase = getSupabase();
     if (!supabase) return { ok: false, error: 'Supabase not configured' };
+    if (!media_id || !media_type || !list_name) {
+      return { ok: false, error: 'Missing required fields' };
+    }
     const { error } = await supabase
       .from(TABLE_LISTS)
       .delete()
@@ -111,7 +128,7 @@ export const ListsService = {
     if (error) {
       // eslint-disable-next-line no-console
       console.warn('ListsService.remove error', error);
-      return { ok: false, error: error.message };
+      return { ok: false, error: error.message || 'Failed to remove from list' };
     }
     return { ok: true };
   },

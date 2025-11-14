@@ -93,11 +93,19 @@ export function Detail() {
               onClick={async () => {
                 if (!user) return toast.addToast('Sign in to favorite', { type: 'error' });
                 if (fav) {
-                  await removeFromList('favorite', item);
+                  const res = await removeFromList('favorite', item);
+                  if (!res.ok) {
+                    toast.addToast(res.error || 'Failed to remove from favorites', { type: 'error' });
+                    return;
+                  }
                   setFav(false);
                   toast.addToast('Removed from favorites', { type: 'info' });
                 } else {
-                  await addToList('favorite', item);
+                  const res = await addToList('favorite', item);
+                  if (!res.ok) {
+                    toast.addToast(res.error || 'Failed to add to favorites', { type: 'error' });
+                    return;
+                  }
                   setFav(true);
                   toast.addToast('Added to favorites', { type: 'success' });
                 }
@@ -113,10 +121,18 @@ export function Detail() {
                 onClick={async () => {
                   if (!user) return toast.addToast('Sign in to manage lists', { type: 'error' });
                   if (listState[name]) {
-                    await removeFromList(name, item);
+                    const res = await removeFromList(name, item);
+                    if (!res.ok) {
+                      toast.addToast(res.error || `Failed to remove from ${name}`, { type: 'error' });
+                      return;
+                    }
                     setListState(s => ({ ...s, [name]: false }));
                   } else {
-                    await addToList(name, item);
+                    const res = await addToList(name, item);
+                    if (!res.ok) {
+                      toast.addToast(res.error || `Failed to add to ${name}`, { type: 'error' });
+                      return;
+                    }
                     setListState(s => ({ ...s, [name]: true }));
                   }
                 }}

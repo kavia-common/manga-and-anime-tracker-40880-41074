@@ -160,19 +160,14 @@ export function AppProvider({ children }) {
       media_type: normalizeMediaType(media.type),
       list_name,
     };
-    // optimistic local cache
-    setLists(prev => {
-      const arr = prev[list_name] ? [...prev[list_name]] : [];
-      if (!arr.find(x => x.media_id === payload.media_id && x.media_type === payload.media_type)) {
-        arr.push({ media_id: payload.media_id, media_type: payload.media_type, list_name });
-      }
-      return { ...prev, [list_name]: arr };
-    });
+    // Perform server call first; update local state only on success (avoid stale optimistic states with RLS failures)
     const res = await ListsService.add(payload);
-    if (!res.ok) {
-      // rollback by removing the inserted item
+    if (res.ok) {
       setLists(prev => {
-        const arr = (prev[list_name] || []).filter(x => !(x.media_id === payload.media_id && x.media_type === payload.media_type));
+        const arr = prev[list_name] ? [...prev[list_name]] : [];
+        if (!arr.find(x => x.media_id === payload.media_id && x.media_type === payload.media_type)) {
+          arr.push({ media_id: payload.media_id, media_type: payload.media_type, list_name });
+        }
         return { ...prev, [list_name]: arr };
       });
     }
@@ -187,16 +182,13 @@ export function AppProvider({ children }) {
       media_type: normalizeMediaType(media.type),
       list_name,
     };
-    // optimistic remove
-    const prevSnapshot = lists[list_name] || [];
-    setLists(prev => {
-      const arr = (prev[list_name] || []).filter(x => !(x.media_id === payload.media_id && x.media_type === payload.media_type));
-      return { ...prev, [list_name]: arr };
-    });
+    // Call server first to ensure authorization; update upon success
     const res = await ListsService.remove(payload);
-    if (!res.ok) {
-      // rollback
-      setLists(prev => ({ ...prev, [list_name]: prevSnapshot }));
+    if (res.ok) {
+      setLists(prev => {
+        const arr = (prev[list_name] || []).filter(x => !(x.media_id === payload.media_id && x.media_type === payload.media_type));
+        return { ...prev, [list_name]: arr };
+      });
     }
     return res;
   };
