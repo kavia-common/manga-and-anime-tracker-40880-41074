@@ -3,10 +3,38 @@ import { getSupabase, tableExists } from '../supabaseClient';
 /**
  * Supabase-backed data access for user_ratings, user_lists, and optional user_progress.
  * All methods are tolerant of missing Supabase config and will no-op or return empty results.
+ * IMPORTANT: For RLS policies that use auth.uid() = user_id, we explicitly include user_id
+ * on all write operations (insert/upsert/delete filters) to avoid relying on defaults.
  */
 const TABLE_RATINGS = 'user_ratings';
-const TABLE_LISTS = 'user_lists';
+const TABLE_LISTS = 'user_lists'; // verify: table name is user_lists (not users_lists)
 const TABLE_PROGRESS = 'user_progress';
+
+// Small helper to fetch current auth user id safely
+async function getCurrentUserId() {
+  const supabase = getSupabase();
+  if (!supabase?.auth?.getUser) return null;
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) return null;
+    return data?.user?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+// Centralized detailed error formatter for Supabase errors
+function formatSbError(prefix, error, extra = {}) {
+  const code = error?.code;
+  const msg = error?.message || String(error || '');
+  const hint =
+    /row-level security|rls|violates row-level security/i.test(msg)
+      ? 'RLS policy blocked the operation. Ensure user_id matches auth.uid() and policies exist on correct table name.'
+      : '';
+  // eslint-disable-next-line no-console
+  console.warn(prefix, { code, message: msg, hint, ...extra });
+  return msg;
+}
 
 // PUBLIC_INTERFACE
 export const RatingsService = {
@@ -19,8 +47,7 @@ export const RatingsService = {
       .select('media_id, rating');
     if (error) {
       // Swallow errors to keep UI usable in mock mode
-      // eslint-disable-next-line no-console
-      console.warn('RatingsService.loadAll error', error);
+      formatSbError('RatingsService.loadAll error', error);
       return {};
     }
     const map = {};
@@ -36,7 +63,11 @@ export const RatingsService = {
     if (!media_id || !media_type || !rating) {
       return { ok: false, error: 'Missing required fields' };
     }
+    const user_id = await getCurrentUserId();
+    if (!user_id) return { ok: false, error: 'Not authenticated' };
+
     const payload = {
+      user_id, // explicitly include to satisfy RLS with check (auth.uid() = user_id)
       media_id,
       media_type,
       rating,
@@ -46,9 +77,8 @@ export const RatingsService = {
       .from(TABLE_RATINGS)
       .upsert(payload, { onConflict: 'user_id,media_id,media_type' });
     if (error) {
-      // eslint-disable-next-line no-console
-      console.warn('RatingsService.upsert error', error);
-      return { ok: false, error: error.message || 'Failed to save rating' };
+      const msg = formatSbError('RatingsService.upsert error', error, { payload });
+      return { ok: false, error: msg || 'Failed to save rating' };
     }
     return { ok: true };
   },
@@ -56,15 +86,18 @@ export const RatingsService = {
   async remove({ media_id, media_type }) {
     const supabase = getSupabase();
     if (!supabase) return { ok: false, error: 'Supabase not configured' };
+    const user_id = await getCurrentUserId();
+    if (!user_id) return { ok: false, error: 'Not authenticated' };
+
     const { error } = await supabase
       .from(TABLE_RATINGS)
       .delete()
+      .eq('user_id', user_id)
       .eq('media_id', media_id)
       .eq('media_type', media_type);
     if (error) {
-      // eslint-disable-next-line no-console
-      console.warn('RatingsService.remove error', error);
-      return { ok: false, error: error.message };
+      const msg = formatSbError('RatingsService.remove error', error, { media_id, media_type });
+      return { ok: false, error: msg };
     }
     return { ok: true };
   },
@@ -76,59 +109,65 @@ export const ListsService = {
   async loadList(list_name) {
     const supabase = getSupabase();
     if (!supabase) return [];
-    // RLS ensures only the current user's rows are visible. We do not need to pass user_id in filters.
+    const user_id = await getCurrentUserId();
+    if (!user_id) return [];
+
+    // RLS ensures only the current user's rows are visible, but we also filter by user_id
     const { data, error } = await supabase
       .from(TABLE_LISTS)
       .select('media_id, media_type, list_name')
+      .eq('user_id', user_id)
       .eq('list_name', list_name);
     if (error) {
-      // eslint-disable-next-line no-console
-      console.warn('ListsService.loadList error', error);
+      formatSbError('ListsService.loadList error', error, { list_name });
       return [];
     }
     return data || [];
   },
-  /** Add to a named list. Inserts with implicit user_id via RLS auth.uid(). */
+  /** Add to a named list. Inserts with explicit user_id to satisfy with check (auth.uid() = user_id). */
   async add({ media_id, media_type, list_name }) {
     const supabase = getSupabase();
     if (!supabase) return { ok: false, error: 'Supabase not configured' };
-    // Ensure required fields are present
     if (!media_id || !media_type || !list_name) {
       return { ok: false, error: 'Missing required fields' };
     }
-    // Use insert not upsert to surface uniqueness errors clearly; handle 23505 manually as success
+    const user_id = await getCurrentUserId();
+    if (!user_id) return { ok: false, error: 'Not authenticated' };
+
+    // Use insert to catch uniqueness; treat unique violation as success.
     const { error } = await supabase
       .from(TABLE_LISTS)
-      .insert({ media_id, media_type, list_name });
+      .insert({ user_id, media_id, media_type, list_name });
     if (error) {
       const msg = error.message || '';
-      // If unique constraint violation, treat as success (idempotent add)
       if (String(error.code) === '23505' || /duplicate key value|unique/i.test(msg)) {
         return { ok: true, warning: 'Already in list' };
       }
-      // eslint-disable-next-line no-console
-      console.warn('ListsService.add error', error);
-      return { ok: false, error: msg || 'Failed to add to list' };
+      const fmt = formatSbError('ListsService.add error', error, { user_id, media_id, media_type, list_name });
+      return { ok: false, error: fmt || 'Failed to add to list' };
     }
     return { ok: true };
   },
-  /** Remove from a named list. Scoped by RLS to current user. */
+  /** Remove from a named list. Scoped by RLS to current user (explicit user_id filter included). */
   async remove({ media_id, media_type, list_name }) {
     const supabase = getSupabase();
     if (!supabase) return { ok: false, error: 'Supabase not configured' };
     if (!media_id || !media_type || !list_name) {
       return { ok: false, error: 'Missing required fields' };
     }
+    const user_id = await getCurrentUserId();
+    if (!user_id) return { ok: false, error: 'Not authenticated' };
+
     const { error } = await supabase
       .from(TABLE_LISTS)
       .delete()
+      .eq('user_id', user_id)
       .eq('media_id', media_id)
       .eq('media_type', media_type)
       .eq('list_name', list_name);
     if (error) {
-      // eslint-disable-next-line no-console
-      console.warn('ListsService.remove error', error);
-      return { ok: false, error: error.message || 'Failed to remove from list' };
+      const msg = formatSbError('ListsService.remove error', error, { user_id, media_id, list_name });
+      return { ok: false, error: msg || 'Failed to remove from list' };
     }
     return { ok: true };
   },
@@ -155,9 +194,13 @@ export const ProgressService = {
   async get({ media_id, media_type }) {
     const sb = getSupabase();
     if (!sb) return null;
+    const user_id = await getCurrentUserId();
+    if (!user_id) return null;
+
     const { data, error } = await sb
       .from(TABLE_PROGRESS)
       .select('media_id, media_type, last_unit')
+      .eq('user_id', user_id)
       .eq('media_id', media_id)
       .eq('media_type', media_type)
       .limit(1);
@@ -168,10 +211,13 @@ export const ProgressService = {
   async upsert({ media_id, media_type, last_unit }) {
     const sb = getSupabase();
     if (!sb) return { ok: false, error: 'Supabase not configured' };
+    const user_id = await getCurrentUserId();
+    if (!user_id) return { ok: false, error: 'Not authenticated' };
+
     const { error } = await sb
       .from(TABLE_PROGRESS)
       .upsert(
-        { media_id, media_type, last_unit, updated_at: new Date().toISOString() },
+        { user_id, media_id, media_type, last_unit, updated_at: new Date().toISOString() },
         { onConflict: 'user_id,media_id,media_type' }
       );
     if (error) return { ok: false, error: error.message };

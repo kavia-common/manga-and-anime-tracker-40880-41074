@@ -21,6 +21,11 @@ Persistence:
 - Lists: public.user_lists (plan/current/completed/favorite).
 - Optional Progress: public.user_progress with last_unit (episode/chapter). Guarded by feature flag "progress" and table existence check.
 
+RLS and Table Naming:
+- Confirm table name is exactly public.user_lists (not users_lists).
+- Policies must be created on public.user_lists as shown below.
+- The frontend explicitly includes user_id = auth.uid() on ALL writes (insert/upsert/delete) to satisfy WITH CHECK (auth.uid() = user_id) policies and avoid RLS violations.
+
 Schema and RLS (apply in Supabase SQL editor or via migration/tooling):
 
 -- Ensure pgcrypto for gen_random_uuid
@@ -188,28 +193,13 @@ end $$;
 -- No broad grants recommended; RLS enforces per-user access.
 
 ## Verification checklist (after running the SQL)
-1) Insert a test row as an authenticated user via Supabase SQL:
-   -- Example: using your user id (replace <user_uuid>)
-   -- Should succeed only when auth.uid() = user_id (via PostgREST; in SQL editor, set role to authenticated)
-   -- For quick smoke tests, interact via the frontend to perform upserts.
-
-2) Frontend feature flags:
-   - To enable progress UI: set REACT_APP_FEATURE_FLAGS=progress,analytics (analytics optional)
-   - The app checks for user_progress existence at runtime and uses it if present.
-
-3) Auth redirect configuration in Supabase Dashboard:
-   - Authentication > URL Configuration
-   - Site URL: your REACT_APP_FRONTEND_URL origin (e.g., http://localhost:3000)
-   - Redirect URLs allowlist:
-     * http://localhost:3000/**
-     * Your production domain /**
-
-4) Environment variables:
-   - REACT_APP_SUPABASE_URL=https://deygudumwuravulvovrh.supabase.co
-   - REACT_APP_SUPABASE_KEY=… (anon key)
-   - REACT_APP_FRONTEND_URL=http://localhost:3000
+1) Verify table names: user_ratings, user_lists, user_progress (not users_lists).
+2) Insert test rows via frontend (signed-in user). Adds/removes across favorites/plan/current/completed should succeed.
+3) If you see "new row violates row-level security policy", ensure:
+   - user_id is being set from auth.uid() (frontend now includes it explicitly)
+   - RLS policies exist on user_lists
+   - Auth session is valid (user is signed in)
 
 ## Notes
-- The provided SQL is idempotent: re-running is safe; it drops and recreates policies to ensure correct definitions.
-- SECURITY INVOKER is not explicitly set; default behavior with RLS + auth.uid() policies is sufficient for @supabase/supabase-js v2 usage.
-- Frontend already integrates ratings, lists, and optional progress; no further code changes required after schema creation.
+- Frontend now logs detailed Supabase error information with hints when an RLS policy blocks an operation.
+- The provided SQL is idempotent and can be re-run safely to correct policies.
