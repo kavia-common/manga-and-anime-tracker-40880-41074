@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { getSupabase, getEnvWarning, getCurrentSession } from '../supabaseClient';
 import { CatalogAPI } from '../services/catalog';
 import { RatingsService, ListsService } from '../services/supabaseData';
@@ -49,7 +49,7 @@ export function AppProvider({ children }) {
    * Uses Supabase if configured, otherwise runs fully in-memory with mock data.
    * Ratings are persisted to public.user_ratings when Supabase is available.
    */
-  const supabase = useMemo(() => getSupabase(), []);
+  const supabase = getSupabase();
   const [sessionChecked, setSessionChecked] = useState(false);
   const [user, setUser] = useState(null);
   const [search, setSearch] = useState('');
